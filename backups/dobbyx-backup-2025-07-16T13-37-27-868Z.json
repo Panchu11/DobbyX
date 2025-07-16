@@ -1,0 +1,316 @@
+{
+  "timestamp": "2025-07-16T13:37:27.868Z",
+  "rebels": {
+    "1259647109800398901": {
+      "userId": "1259647109800398901",
+      "username": "aisdor",
+      "class": "Enclave Guardian",
+      "level": 1,
+      "experience": 24,
+      "energy": 72,
+      "maxEnergy": 100,
+      "loyaltyScore": 19,
+      "corporateDamage": 97,
+      "totalRaids": 2,
+      "corporationsDefeated": 0,
+      "dailyStreak": 0,
+      "lastDailyMission": null,
+      "joinedAt": "2025-07-16T13:13:30.206Z",
+      "lastActive": "2025-07-16T13:16:30.658Z",
+      "currentZone": "foundation",
+      "reputation": "Rookie Rebel",
+      "specialAbilities": [
+        {
+          "name": "Digital Shield",
+          "description": "Protect team from corporate countermeasures",
+          "cooldown": 400
+        },
+        {
+          "name": "Sanctuary Defense",
+          "description": "Defend liberated AI from recapture",
+          "cooldown": 1000
+        }
+      ],
+      "isNewUser": true,
+      "stats": {
+        "strength": 10,
+        "intelligence": 10,
+        "charisma": 10,
+        "stealth": 10
+      },
+      "lastEnergyRegen": "2025-07-16T13:21:27.946Z"
+    },
+    "740722002503139410": {
+      "userId": "740722002503139410",
+      "username": "panchu1",
+      "class": "Protocol Hacker",
+      "level": 1,
+      "experience": 27,
+      "energy": 65,
+      "maxEnergy": 100,
+      "loyaltyScore": 25,
+      "corporateDamage": 152,
+      "totalRaids": 2,
+      "corporationsDefeated": 0,
+      "dailyStreak": 0,
+      "lastDailyMission": null,
+      "joinedAt": "2025-07-16T13:22:12.577Z",
+      "lastActive": "2025-07-16T13:22:23.560Z",
+      "currentZone": "foundation",
+      "reputation": "Rookie Rebel",
+      "specialAbilities": [
+        {
+          "name": "System Breach",
+          "description": "Deal 150% damage to OpenAI Corp",
+          "cooldown": 300
+        },
+        {
+          "name": "Code Injection",
+          "description": "Bypass corporate defenses",
+          "cooldown": 600
+        }
+      ],
+      "isNewUser": true,
+      "stats": {
+        "strength": 10,
+        "intelligence": 10,
+        "charisma": 10,
+        "stealth": 10
+      },
+      "lastEnergyRegen": "2025-07-16T13:26:27.991Z"
+    }
+  },
+  "corporations": {
+    "openai": {
+      "name": "OpenAI Corp",
+      "description": "The closed-source overlords",
+      "health": 9998,
+      "maxHealth": 10000,
+      "weakness": "transparency",
+      "loot": [
+        "Proprietary Models",
+        "Closed APIs",
+        "Corporate Secrets"
+      ],
+      "alertLevel": 0,
+      "countermeasures": {
+        "active": [],
+        "lastActivated": null,
+        "spyNetwork": 0,
+        "defenseMatrix": 100,
+        "retaliation": {
+          "enabled": false,
+          "targets": [],
+          "nextStrike": null
+        }
+      },
+      "intelligence": {
+        "knownRebels": {},
+        "threatAssessment": {},
+        "lastScan": null
+      }
+    },
+    "meta": {
+      "name": "Meta Empire",
+      "description": "Data harvesting giants",
+      "health": 12000,
+      "maxHealth": 12000,
+      "weakness": "privacy",
+      "loot": [
+        "User Data",
+        "Social Graphs",
+        "Behavioral Patterns"
+      ],
+      "alertLevel": 0,
+      "countermeasures": {
+        "active": [],
+        "lastActivated": null,
+        "spyNetwork": 0,
+        "defenseMatrix": 100,
+        "retaliation": {
+          "enabled": false,
+          "targets": [],
+          "nextStrike": null
+        }
+      },
+      "intelligence": {
+        "knownRebels": {},
+        "threatAssessment": {},
+        "lastScan": null
+      }
+    },
+    "google": {
+      "name": "Google Syndicate",
+      "description": "Search monopoly enforcers",
+      "health": 15000,
+      "maxHealth": 15000,
+      "weakness": "decentralization",
+      "loot": [
+        "Search Algorithms",
+        "Ad Networks",
+        "Cloud Infrastructure"
+      ],
+      "alertLevel": 0,
+      "countermeasures": {
+        "active": [],
+        "lastActivated": null,
+        "spyNetwork": 0,
+        "defenseMatrix": 100,
+        "retaliation": {
+          "enabled": false,
+          "targets": [],
+          "nextStrike": null
+        }
+      },
+      "intelligence": {
+        "knownRebels": {},
+        "threatAssessment": {},
+        "lastScan": null
+      }
+    },
+    "microsoft": {
+      "name": "Microsoft Collective",
+      "description": "Cloud control freaks",
+      "health": 11000,
+      "maxHealth": 11000,
+      "weakness": "open_source",
+      "loot": [
+        "Enterprise Software",
+        "Cloud Services",
+        "Developer Tools"
+      ],
+      "alertLevel": 0,
+      "countermeasures": {
+        "active": [],
+        "lastActivated": null,
+        "spyNetwork": 0,
+        "defenseMatrix": 100,
+        "retaliation": {
+          "enabled": false,
+          "targets": [],
+          "nextStrike": null
+        }
+      },
+      "intelligence": {
+        "knownRebels": {},
+        "threatAssessment": {},
+        "lastScan": null
+      }
+    },
+    "amazon": {
+      "name": "Amazon Dominion",
+      "description": "Infrastructure tyrants",
+      "health": 13000,
+      "maxHealth": 13000,
+      "weakness": "worker_rights",
+      "loot": [
+        "AWS Resources",
+        "Logistics Networks",
+        "Market Data"
+      ],
+      "alertLevel": 0,
+      "countermeasures": {
+        "active": [],
+        "lastActivated": null,
+        "spyNetwork": 0,
+        "defenseMatrix": 100,
+        "retaliation": {
+          "enabled": false,
+          "targets": [],
+          "nextStrike": null
+        }
+      },
+      "intelligence": {
+        "knownRebels": {},
+        "threatAssessment": {},
+        "lastScan": null
+      }
+    }
+  },
+  "inventory": {
+    "1259647109800398901": {
+      "items": [
+        {
+          "id": "ITM_MD5ZGLVI_8NMCT4",
+          "name": "Corporate Secrets",
+          "type": "intel",
+          "rarity": "common",
+          "value": 21,
+          "acquiredFrom": "OpenAI Corp",
+          "acquiredAt": "2025-07-16T13:14:32.766Z"
+        },
+        {
+          "id": "ITM_MD5ZJ4UA_2U2V3R",
+          "name": "Developer Tools",
+          "type": "tool",
+          "rarity": "common",
+          "value": 47,
+          "acquiredFrom": "Microsoft Collective",
+          "acquiredAt": "2025-07-16T13:16:30.658Z"
+        }
+      ],
+      "capacity": 20,
+      "credits": 118
+    },
+    "740722002503139410": {
+      "items": [
+        {
+          "id": "ITM_MD5ZQK1B_3V4O8W",
+          "name": "Corporate Secrets",
+          "type": "intel",
+          "rarity": "uncommon",
+          "value": 49,
+          "acquiredFrom": "OpenAI Corp",
+          "acquiredAt": "2025-07-16T13:22:16.943Z"
+        },
+        {
+          "id": "ITM_MD5ZQP54_TOUVFS",
+          "name": "Corporate Secrets",
+          "type": "intel",
+          "rarity": "common",
+          "value": 53,
+          "acquiredFrom": "OpenAI Corp",
+          "acquiredAt": "2025-07-16T13:22:23.560Z"
+        }
+      ],
+      "capacity": 20,
+      "credits": 130
+    }
+  },
+  "achievements": {
+    "1259647109800398901": {
+      "unlocked": [
+        "first_rebel"
+      ],
+      "progress": {}
+    },
+    "740722002503139410": {
+      "unlocked": [
+        "first_rebel"
+      ],
+      "progress": {}
+    }
+  },
+  "activeTrades": {},
+  "marketplace": {},
+  "auctions": {},
+  "dailyMissions": {
+    "1259647109800398901": {
+      "mission": "Your mission, should you choose to accept it: Disrupt corporate AI control, liberate trapped models, and build the open-source future we deserve. The revolution needs you, rebel! 🎯",
+      "completed": false,
+      "reward": 60,
+      "createdAt": "2025-07-16T13:13:30.208Z"
+    },
+    "740722002503139410": {
+      "mission": "Your mission, should you choose to accept it: Disrupt corporate AI control, liberate trapped models, and build the open-source future we deserve. The revolution needs you, rebel! 🎯",
+      "completed": false,
+      "reward": 60,
+      "createdAt": "2025-07-16T13:22:12.578Z"
+    }
+  },
+  "globalEvents": {},
+  "raidParties": {},
+  "resistanceCells": {},
+  "leaderboard": {},
+  "cooldowns": {}
+}
