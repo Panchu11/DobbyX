@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: dobbyx-rebellion
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: info
+      - key: MONITORING_PORT
+        value: 10000
+    # Environment variables to be set manually in Render dashboard:
+    # DISCORD_TOKEN - Your Discord bot token
+    # DISCORD_CLIENT_ID - Your Discord application client ID
+    # DISCORD_GUILD_ID - Your Discord guild/server ID
+    # MONGODB_URI - Your MongoDB Atlas connection string
+    # FIREWORKS_API_KEY - Your Fireworks AI API key
+    # DOBBY_MODEL_ID - accounts/sentientfoundation/models/dobby-unhinged-llama-3-3-70b-new
