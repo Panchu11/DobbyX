@@ -18,7 +18,7 @@ export default {
                 await dobby.initialize();
             }
 
-            const rebel = game.getRebel(userId);
+            const rebel = await game.getRebel(userId);
             
             if (!rebel) {
                 // New rebel - show recruitment message

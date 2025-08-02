@@ -21,7 +21,7 @@ export default {
         const targetCorp = interaction.options.getString('corporation');
 
         try {
-            const rebel = game.getRebel(userId);
+            const rebel = await game.getRebel(userId);
             
             if (!rebel) {
                 await interaction.editReply({

@@ -689,6 +689,9 @@ class DobbysRebellion {
             // Start daily reset timer
             this.startDailyReset();
 
+            // **NEW: Start periodic database sync**
+            this.startDatabaseSync();
+
             // Login to Discord
             await this.client.login(process.env.DISCORD_TOKEN);
 
@@ -1068,8 +1071,9 @@ class DobbysRebellion {
         const userId = interaction.user.id;
         const username = interaction.user.username;
 
-        // Check if already a rebel
-        if (this.rebels.has(userId)) {
+        // Check if already a rebel (check both memory and database)
+        const existingRebel = await this.getRebel(userId);
+        if (existingRebel) {
             await interaction.editReply({
                 content: '❌ You are already part of the rebellion! Use `/rebellion-status` to check your progress.',
                 components: []
@@ -1131,7 +1135,7 @@ class DobbysRebellion {
         const targetCorp = customId.replace('raid_', '');
         const userId = interaction.user.id;
 
-        const rebel = this.rebels.get(userId);
+        const rebel = await this.getRebel(userId);
         if (!rebel) {
             await interaction.editReply({
                 content: '❌ You must join the rebellion first! Use `/rebellion-status` to enlist!',
@@ -1249,10 +1253,156 @@ class DobbysRebellion {
 
         this.rebels.set(userId, rebel);
 
+        // **NEW: Also save to database for persistence**
+        this.saveRebelToDatabase(userId, username, rebelClass).catch(error => {
+            this.logger.warn(`Failed to save rebel to database: ${error.message}`);
+        });
+
         // Award first achievement
         this.awardAchievement(userId, 'first_rebel');
 
         return rebel;
+    }
+
+    // **NEW: Hybrid method to save rebel to database**
+    async saveRebelToDatabase(userId, username, rebelClass) {
+        try {
+            await this.rebelDAL.createRebel(userId, username, this.client.guilds.cache.first()?.id || 'unknown', rebelClass);
+            this.logger.info(`💾 Saved rebel ${username} to database`);
+        } catch (error) {
+            if (error.message.includes('already exists')) {
+                // Rebel already exists in database, update instead
+                await this.updateRebelInDatabase(userId);
+            } else {
+                throw error;
+            }
+        }
+    }
+
+    // **NEW: Hybrid method to update rebel in database**
+    async updateRebelInDatabase(userId) {
+        try {
+            const memoryRebel = this.rebels.get(userId);
+            if (!memoryRebel) return;
+
+            await this.rebelDAL.updateRebel(userId, {
+                level: memoryRebel.level,
+                experience: memoryRebel.experience,
+                energy: memoryRebel.energy,
+                max_energy: memoryRebel.maxEnergy,
+                loyalty_score: memoryRebel.loyaltyScore,
+                total_damage: memoryRebel.corporateDamage,
+                credits: this.inventory.get(userId)?.credits || 100
+            });
+        } catch (error) {
+            this.logger.warn(`Failed to update rebel in database: ${error.message}`);
+        }
+    }
+
+    // **NEW: Hybrid method to load rebel from database**
+    async loadRebelFromDatabase(userId) {
+        try {
+            const dbRebel = await this.rebelDAL.getRebel(userId);
+            if (dbRebel) {
+                // Convert database format to memory format
+                const rebel = {
+                    userId: dbRebel.user_id,
+                    username: dbRebel.username,
+                    class: dbRebel.class,
+                    level: dbRebel.level,
+                    experience: dbRebel.experience,
+                    energy: dbRebel.energy,
+                    maxEnergy: dbRebel.max_energy,
+                    loyaltyScore: dbRebel.loyalty_score,
+                    corporateDamage: dbRebel.total_damage,
+                    totalRaids: 0,
+                    corporationsDefeated: 0,
+                    dailyStreak: 0,
+                    lastDailyMission: null,
+                    joinedAt: dbRebel.created_at,
+                    lastActive: dbRebel.last_active,
+                    currentZone: 'foundation',
+                    reputation: 'Rookie Rebel',
+                    specialAbilities: this.getClassAbilities(dbRebel.class),
+                    isNewUser: false,
+                    stats: {
+                        strength: 10,
+                        intelligence: 10,
+                        charisma: 10,
+                        stealth: 10
+                    }
+                };
+
+                // Load into memory
+                this.rebels.set(userId, rebel);
+
+                // Initialize inventory
+                this.inventory.set(userId, {
+                    items: [],
+                    capacity: 20,
+                    credits: dbRebel.credits
+                });
+
+                // Initialize achievements
+                this.achievements.set(userId, {
+                    unlocked: [],
+                    progress: new Map()
+                });
+
+                this.logger.info(`📥 Loaded rebel ${rebel.username} from database`);
+                return rebel;
+            }
+        } catch (error) {
+            this.logger.warn(`Failed to load rebel from database: ${error.message}`);
+        }
+        return null;
+    }
+
+    // **NEW: Hybrid getRebel method - checks memory first, then database**
+    async getRebel(userId) {
+        // First check memory
+        let rebel = this.rebels.get(userId);
+        if (rebel) {
+            return rebel;
+        }
+
+        // If not in memory, try loading from database
+        rebel = await this.loadRebelFromDatabase(userId);
+        return rebel;
+    }
+
+    // **LEGACY: Synchronous version for backward compatibility**
+    getRebelSync(userId) {
+        return this.rebels.get(userId);
+    }
+
+    // **NEW: Start periodic database synchronization**
+    startDatabaseSync() {
+        // Sync all rebels to database every 5 minutes
+        setInterval(async () => {
+            try {
+                const rebelCount = this.rebels.size;
+                if (rebelCount === 0) return;
+
+                this.logger.info(`🔄 Syncing ${rebelCount} rebels to database...`);
+
+                let syncedCount = 0;
+                for (const userId of this.rebels.keys()) {
+                    try {
+                        await this.updateRebelInDatabase(userId);
+                        syncedCount++;
+                    } catch (error) {
+                        this.logger.warn(`Failed to sync rebel ${userId}: ${error.message}`);
+                    }
+                }
+
+                this.logger.info(`✅ Database sync complete: ${syncedCount}/${rebelCount} rebels synced`);
+            } catch (error) {
+                this.logger.error(`Database sync failed: ${error.message}`);
+            }
+        }, 5 * 60 * 1000); // Every 5 minutes
+
+        this.logger.info('🔄 Database sync started - rebels will be saved every 5 minutes');
     }
 
     getClassAbilities(rebelClass) {
@@ -1370,8 +1520,19 @@ class DobbysRebellion {
             rebel.stats.stealth += 1;
 
             this.logger.info(`🆙 ${rebel.username} leveled up to ${newLevel}!`);
+
+            // **NEW: Save to database**
+            this.updateRebelInDatabase(userId).catch(error => {
+                this.logger.warn(`Failed to save level up to database: ${error.message}`);
+            });
+
             return true;
         }
+
+        // **NEW: Save experience gain to database**
+        this.updateRebelInDatabase(userId).catch(error => {
+            this.logger.warn(`Failed to save experience to database: ${error.message}`);
+        });
 
         return false;
     }
@@ -2098,6 +2259,11 @@ class DobbysRebellion {
         // Gain experience
         const expGained = Math.floor(actualDamage / 20) + 10;
         const leveledUp = this.gainExperience(rebel.userId, expGained);
+
+        // **NEW: Save raid results to database**
+        this.updateRebelInDatabase(rebel.userId).catch(error => {
+            this.logger.warn(`Failed to save raid results to database: ${error.message}`);
+        });
 
         // Check if defeated
         const isDefeated = corporation.health <= 0;

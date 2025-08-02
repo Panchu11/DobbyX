@@ -126,7 +126,7 @@ export class RebelDAL {
 
     // Add experience and handle level ups
     async addExperience(userId, experience) {
-        return await this.mongo.executeOperation(async () => {
+        return await this.postgres.executeOperation(async () => {
             const rebel = await this.getRebel(userId);
             if (!rebel) {
                 throw new Error('Rebel not found');
@@ -138,20 +138,19 @@ export class RebelDAL {
 
             const updateData = {
                 experience: newExperience,
-                level: newLevel,
-                updatedAt: new Date()
+                level: newLevel
             };
 
             // If leveled up, increase max energy
             if (leveledUp) {
-                updateData.maxEnergy = Math.min(200, rebel.maxEnergy + 5);
-                updateData.energy = updateData.maxEnergy; // Full energy on level up
+                updateData.max_energy = Math.min(200, rebel.max_energy + 5);
+                updateData.energy = updateData.max_energy; // Full energy on level up
                 this.logger.info(`🎉 Rebel ${userId} leveled up to level ${newLevel}!`);
                 this.metrics.recordEvent('rebel_levelup', 'success', 'game');
             }
 
             await this.updateRebel(userId, updateData);
-            
+
             return {
                 leveledUp,
                 oldLevel: rebel.level,
@@ -159,7 +158,7 @@ export class RebelDAL {
                 experienceGained: experience,
                 totalExperience: newExperience
             };
-        }, this.collection, 'addExperience');
+        }, this.table, 'addExperience');
     }
 
     // Calculate level from experience
@@ -170,198 +169,212 @@ export class RebelDAL {
 
     // Update energy
     async updateEnergy(userId, energyChange) {
-        return await this.mongo.executeOperation(async () => {
+        return await this.postgres.executeOperation(async () => {
             const rebel = await this.getRebel(userId);
             if (!rebel) {
                 throw new Error('Rebel not found');
             }
 
-            const newEnergy = Math.max(0, Math.min(rebel.maxEnergy, rebel.energy + energyChange));
-            
-            await this.updateRebel(userId, { 
+            const newEnergy = Math.max(0, Math.min(rebel.max_energy, rebel.energy + energyChange));
+
+            await this.updateRebel(userId, {
                 energy: newEnergy,
-                lastEnergyRegen: new Date()
+                last_energy_regen: new Date()
             });
 
             return {
                 oldEnergy: rebel.energy,
                 newEnergy,
-                maxEnergy: rebel.maxEnergy
+                maxEnergy: rebel.max_energy
             };
-        }, this.collection, 'updateEnergy');
+        }, this.table, 'updateEnergy');
     }
 
-    // Add item to inventory
+    // Add item to inventory (using items table)
     async addItemToInventory(userId, itemId, quantity = 1) {
-        return await this.mongo.executeOperation(async () => {
+        return await this.postgres.executeOperation(async () => {
             const rebel = await this.getRebel(userId);
             if (!rebel) {
                 throw new Error('Rebel not found');
             }
 
-            // Check inventory space
-            if (rebel.inventory.items.length >= rebel.inventory.maxSlots) {
-                throw new Error('Inventory is full');
-            }
+            // Check if item already exists
+            const existingQuery = `SELECT * FROM items WHERE owner_id = $1 AND item_id = $2`;
+            const existingResult = await this.postgres.query(existingQuery, [userId, itemId]);
 
-            // Check if item already exists in inventory
-            const existingItemIndex = rebel.inventory.items.findIndex(item => item.itemId === itemId);
-            
-            if (existingItemIndex >= 0) {
+            if (existingResult.rows.length > 0) {
                 // Update existing item quantity
-                rebel.inventory.items[existingItemIndex].quantity += quantity;
+                const updateQuery = `
+                    UPDATE items
+                    SET quantity = quantity + $1
+                    WHERE owner_id = $2 AND item_id = $3
+                `;
+                await this.postgres.query(updateQuery, [quantity, userId, itemId]);
             } else {
                 // Add new item
-                rebel.inventory.items.push({
-                    itemId,
-                    quantity,
-                    acquiredAt: new Date()
-                });
+                const insertQuery = `
+                    INSERT INTO items (item_id, owner_id, name, type, rarity, value, acquired_from, acquired_at)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                `;
+                await this.postgres.query(insertQuery, [
+                    itemId, userId, itemId, 'loot', 'common', 0, 'raid', new Date()
+                ]);
             }
 
-            await this.updateRebel(userId, { inventory: rebel.inventory });
-            
             this.logger.info(`📦 Added ${quantity}x ${itemId} to ${userId}'s inventory`);
             return true;
-        }, this.collection, 'addItemToInventory');
+        }, this.table, 'addItemToInventory');
     }
 
     // Remove item from inventory
     async removeItemFromInventory(userId, itemId, quantity = 1) {
-        return await this.mongo.executeOperation(async () => {
+        return await this.postgres.executeOperation(async () => {
             const rebel = await this.getRebel(userId);
             if (!rebel) {
                 throw new Error('Rebel not found');
             }
 
-            const itemIndex = rebel.inventory.items.findIndex(item => item.itemId === itemId);
-            if (itemIndex === -1) {
+            // Check if item exists
+            const itemQuery = `SELECT * FROM items WHERE owner_id = $1 AND item_id = $2`;
+            const itemResult = await this.postgres.query(itemQuery, [userId, itemId]);
+
+            if (itemResult.rows.length === 0) {
                 throw new Error('Item not found in inventory');
             }
 
-            const item = rebel.inventory.items[itemIndex];
+            const item = itemResult.rows[0];
             if (item.quantity < quantity) {
                 throw new Error('Insufficient item quantity');
             }
 
             if (item.quantity === quantity) {
                 // Remove item completely
-                rebel.inventory.items.splice(itemIndex, 1);
+                const deleteQuery = `DELETE FROM items WHERE owner_id = $1 AND item_id = $2`;
+                await this.postgres.query(deleteQuery, [userId, itemId]);
             } else {
                 // Reduce quantity
-                rebel.inventory.items[itemIndex].quantity -= quantity;
+                const updateQuery = `
+                    UPDATE items
+                    SET quantity = quantity - $1
+                    WHERE owner_id = $2 AND item_id = $3
+                `;
+                await this.postgres.query(updateQuery, [quantity, userId, itemId]);
             }
 
-            await this.updateRebel(userId, { inventory: rebel.inventory });
-            
             this.logger.info(`📦 Removed ${quantity}x ${itemId} from ${userId}'s inventory`);
             return true;
-        }, this.collection, 'removeItemFromInventory');
+        }, this.table, 'removeItemFromInventory');
     }
 
     // Update last active timestamp
     async updateLastActive(userId) {
-        return await this.mongo.executeOperation(async () => {
-            const collection = this.mongo.getCollection(this.collection);
-            await collection.updateOne(
-                { userId },
-                { $set: { lastActive: new Date() } }
-            );
-        }, this.collection, 'updateLastActive');
+        return await this.postgres.executeOperation(async () => {
+            const query = `
+                UPDATE ${this.table}
+                SET last_active = $1, updated_at = $2
+                WHERE user_id = $3
+            `;
+            await this.postgres.query(query, [new Date(), new Date(), userId]);
+        }, this.table, 'updateLastActive');
     }
 
     // Get rebels by guild
     async getRebelsByGuild(guildId, limit = 50, skip = 0) {
-        return await this.mongo.executeOperation(async () => {
+        return await this.postgres.executeOperation(async () => {
             if (!Validators.isValidGuildId(guildId)) {
                 throw new Error('Invalid guild ID format');
             }
 
-            const collection = this.mongo.getCollection(this.collection);
-            const rebels = await collection
-                .find({ guildId })
-                .sort({ level: -1, loyaltyScore: -1 })
-                .limit(limit)
-                .skip(skip)
-                .toArray();
+            const query = `
+                SELECT * FROM ${this.table}
+                WHERE guild_id = $1
+                ORDER BY level DESC, loyalty_score DESC
+                LIMIT $2 OFFSET $3
+            `;
+            const result = await this.postgres.query(query, [guildId, limit, skip]);
 
-            return rebels;
-        }, this.collection, 'getRebelsByGuild');
+            return result.rows;
+        }, this.table, 'getRebelsByGuild');
     }
 
     // Get top rebels (leaderboard)
     async getTopRebels(guildId = null, sortBy = 'level', limit = 10) {
-        return await this.mongo.executeOperation(async () => {
-            const query = guildId ? { guildId } : {};
-            const sortOptions = {};
-            
-            // Define sort options
-            switch (sortBy) {
-                case 'level':
-                    sortOptions.level = -1;
-                    sortOptions.experience = -1;
-                    break;
-                case 'loyalty':
-                    sortOptions.loyaltyScore = -1;
-                    break;
-                case 'damage':
-                    sortOptions.corporateDamage = -1;
-                    break;
-                default:
-                    sortOptions.level = -1;
+        return await this.postgres.executeOperation(async () => {
+            let whereClause = '';
+            let params = [limit];
+
+            if (guildId) {
+                whereClause = 'WHERE guild_id = $2';
+                params = [limit, guildId];
             }
 
-            const collection = this.mongo.getCollection(this.collection);
-            const rebels = await collection
-                .find(query)
-                .sort(sortOptions)
-                .limit(limit)
-                .toArray();
+            // Define sort options
+            let orderBy = '';
+            switch (sortBy) {
+                case 'level':
+                    orderBy = 'ORDER BY level DESC, experience DESC';
+                    break;
+                case 'loyalty':
+                    orderBy = 'ORDER BY loyalty_score DESC';
+                    break;
+                case 'damage':
+                    orderBy = 'ORDER BY total_damage DESC';
+                    break;
+                default:
+                    orderBy = 'ORDER BY level DESC';
+            }
 
-            return rebels;
-        }, this.collection, 'getTopRebels');
+            const query = `
+                SELECT * FROM ${this.table}
+                ${whereClause}
+                ${orderBy}
+                LIMIT $1
+            `;
+            const result = await this.postgres.query(query, params);
+
+            return result.rows;
+        }, this.table, 'getTopRebels');
     }
 
     // Get rebel statistics
     async getRebelStats(userId) {
-        return await this.mongo.executeOperation(async () => {
+        return await this.postgres.executeOperation(async () => {
             const rebel = await this.getRebel(userId);
             if (!rebel) {
                 throw new Error('Rebel not found');
             }
 
-            // Calculate additional stats
-            const totalStats = rebel.stats.strength + rebel.stats.intelligence + 
-                             rebel.stats.charisma + rebel.stats.stealth;
-            
-            const inventoryUsed = rebel.inventory.items.length;
-            const inventorySpace = rebel.inventory.maxSlots - inventoryUsed;
-            
+            // Get inventory count
+            const inventoryQuery = `SELECT COUNT(*) as item_count FROM items WHERE owner_id = $1`;
+            const inventoryResult = await this.postgres.query(inventoryQuery, [userId]);
+            const inventoryUsed = parseInt(inventoryResult.rows[0].item_count) || 0;
+            const inventorySpace = 50 - inventoryUsed; // Default max slots
+
             return {
                 basic: {
                     level: rebel.level,
                     experience: rebel.experience,
                     experienceToNext: this.getExperienceToNextLevel(rebel.level, rebel.experience),
                     energy: rebel.energy,
-                    maxEnergy: rebel.maxEnergy
+                    maxEnergy: rebel.max_energy
                 },
                 combat: {
-                    totalStats,
-                    corporateDamage: rebel.corporateDamage,
-                    loyaltyScore: rebel.loyaltyScore
+                    totalStats: 40, // Default stats total
+                    corporateDamage: rebel.total_damage,
+                    loyaltyScore: rebel.loyalty_score
                 },
                 inventory: {
                     used: inventoryUsed,
                     available: inventorySpace,
-                    total: rebel.inventory.maxSlots
+                    total: 50
                 },
                 progression: {
                     class: rebel.class,
-                    currentZone: rebel.currentZone,
-                    reputation: rebel.reputation
+                    currentZone: 'foundation',
+                    reputation: 'Rookie Rebel'
                 }
             };
-        }, this.collection, 'getRebelStats');
+        }, this.table, 'getRebelStats');
     }
 
     // Calculate experience needed for next level
@@ -374,22 +387,74 @@ export class RebelDAL {
 
     // Delete rebel (for admin purposes)
     async deleteRebel(userId) {
-        return await this.mongo.executeOperation(async () => {
+        return await this.postgres.executeOperation(async () => {
             if (!Validators.isValidUserId(userId)) {
                 throw new Error('Invalid user ID format');
             }
 
-            const collection = this.mongo.getCollection(this.collection);
-            const result = await collection.deleteOne({ userId });
+            // Delete rebel and related data (CASCADE will handle items)
+            const query = `DELETE FROM ${this.table} WHERE user_id = $1`;
+            const result = await this.postgres.query(query, [userId]);
 
-            if (result.deletedCount > 0) {
+            if (result.rowCount > 0) {
                 this.logger.info(`🗑️ Deleted rebel: ${userId}`);
                 this.metrics.recordEvent('rebel_deleted', 'success', 'database');
                 return true;
             } else {
                 throw new Error('Rebel not found');
             }
-        }, this.collection, 'deleteRebel');
+        }, this.table, 'deleteRebel');
+    }
+
+    // Get rebel inventory
+    async getRebelInventory(userId) {
+        return await this.postgres.executeOperation(async () => {
+            const query = `SELECT * FROM items WHERE owner_id = $1 ORDER BY acquired_at DESC`;
+            const result = await this.postgres.query(query, [userId]);
+            return result.rows;
+        }, this.table, 'getRebelInventory');
+    }
+
+    // Add credits to rebel
+    async addCredits(userId, amount) {
+        return await this.postgres.executeOperation(async () => {
+            const query = `
+                UPDATE ${this.table}
+                SET credits = credits + $1, updated_at = $2
+                WHERE user_id = $3
+                RETURNING credits
+            `;
+            const result = await this.postgres.query(query, [amount, new Date(), userId]);
+            return result.rows[0]?.credits || 0;
+        }, this.table, 'addCredits');
+    }
+
+    // Update loyalty score
+    async updateLoyaltyScore(userId, amount) {
+        return await this.postgres.executeOperation(async () => {
+            const query = `
+                UPDATE ${this.table}
+                SET loyalty_score = loyalty_score + $1, updated_at = $2
+                WHERE user_id = $3
+                RETURNING loyalty_score
+            `;
+            const result = await this.postgres.query(query, [amount, new Date(), userId]);
+            return result.rows[0]?.loyalty_score || 0;
+        }, this.table, 'updateLoyaltyScore');
+    }
+
+    // Update total damage
+    async updateTotalDamage(userId, damage) {
+        return await this.postgres.executeOperation(async () => {
+            const query = `
+                UPDATE ${this.table}
+                SET total_damage = total_damage + $1, updated_at = $2
+                WHERE user_id = $3
+                RETURNING total_damage
+            `;
+            const result = await this.postgres.query(query, [damage, new Date(), userId]);
+            return result.rows[0]?.total_damage || 0;
+        }, this.table, 'updateTotalDamage');
     }
 }
 
