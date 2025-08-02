@@ -1,7 +1,7 @@
 // 🛡️ ADMIN DASHBOARD COMMAND FOR LARGE-SCALE MONITORING
 // Provides real-time monitoring and management for 10K+ users
 
-import { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } from 'discord.js';
 
 export default {
     data: new SlashCommandBuilder()
@@ -34,13 +34,13 @@ export default {
 
     async execute(interaction, game) {
         const subcommand = interaction.options.getSubcommand();
-        
-        // Check if user is admin (you can customize this check)
-        const adminIds = ['YOUR_ADMIN_USER_ID']; // Replace with actual admin IDs
-        if (!adminIds.includes(interaction.user.id)) {
+
+        // **ADMIN ACCESS CONTROL - Environment Variable Based**
+        const adminIds = this.getAdminIds();
+        if (!this.isAdmin(interaction.user.id, adminIds)) {
             await interaction.editReply({
                 content: '❌ Access denied. This command is restricted to rebellion administrators.',
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
             return;
         }
@@ -320,12 +320,60 @@ export default {
     calculateSystemLoad(game) {
         const memUsage = process.memoryUsage();
         const userCount = game.rebels.size;
-        
+
         return {
             cpu: Math.round(Math.random() * 20 + 10), // Would use actual CPU monitoring
             memoryEfficiency: Math.round((1 - memUsage.heapUsed / memUsage.heapTotal) * 100),
             userLoad: userCount > 5000 ? 'HIGH' : userCount > 1000 ? 'MEDIUM' : 'LOW',
             avgResponseTime: Math.round(Math.random() * 100 + 50) // Would track actual response times
+        };
+    },
+
+    // **ADMIN ACCESS CONTROL METHODS**
+
+    /**
+     * Get admin user IDs from environment variable
+     * @returns {string[]} Array of admin Discord user IDs
+     */
+    getAdminIds() {
+        const adminIdsEnv = process.env.ADMIN_USER_IDS;
+
+        if (!adminIdsEnv) {
+            console.warn('⚠️ ADMIN_USER_IDS environment variable not set. Admin commands will be disabled.');
+            return [];
+        }
+
+        // Split by comma and trim whitespace
+        const adminIds = adminIdsEnv.split(',').map(id => id.trim()).filter(id => id.length > 0);
+
+        if (adminIds.length === 0) {
+            console.warn('⚠️ No valid admin IDs found in ADMIN_USER_IDS environment variable.');
+        }
+
+        return adminIds;
+    },
+
+    /**
+     * Check if a user ID is an admin
+     * @param {string} userId - Discord user ID to check
+     * @param {string[]} adminIds - Array of admin user IDs
+     * @returns {boolean} True if user is admin
+     */
+    isAdmin(userId, adminIds) {
+        return adminIds.includes(userId);
+    },
+
+    /**
+     * Get admin configuration info (for debugging)
+     * @returns {object} Admin configuration details
+     */
+    getAdminConfig() {
+        const adminIds = this.getAdminIds();
+        return {
+            totalAdmins: adminIds.length,
+            adminIds: adminIds.map(id => `${id.substring(0, 4)}...${id.substring(id.length - 4)}`), // Masked for security
+            environmentVariableSet: !!process.env.ADMIN_USER_IDS,
+            configurationValid: adminIds.length > 0
         };
     }
 };
