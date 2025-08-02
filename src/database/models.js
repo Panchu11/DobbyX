@@ -292,7 +292,20 @@ export const DefaultValues = {
 export const Validators = {
     // Validate rebel class
     isValidClass(className) {
-        const validClasses = ['hacker', 'whistleblower', 'activist', 'researcher', 'coordinator'];
+        const validClasses = [
+            // Current game classes (display names)
+            'Protocol Hacker',
+            'Model Trainer',
+            'Data Liberator',
+            'Community Organizer',
+            'Enclave Guardian',
+            // Legacy classes (for backward compatibility)
+            'hacker',
+            'whistleblower',
+            'activist',
+            'researcher',
+            'coordinator'
+        ];
         return validClasses.includes(className);
     },
     

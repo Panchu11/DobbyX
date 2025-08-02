@@ -95,13 +95,13 @@ export const metrics = {
   databaseOperationsTotal: new prometheus.Counter({
     name: 'dobbyx_database_operations_total',
     help: 'Total number of database operations',
-    labelNames: ['operation', 'collection', 'status']
+    labelNames: ['operation', 'collection', 'status', 'component']
   }),
 
   databaseOperationDuration: new prometheus.Histogram({
     name: 'dobbyx_database_operation_duration_seconds',
     help: 'Duration of database operations',
-    labelNames: ['operation', 'collection'],
+    labelNames: ['operation', 'collection', 'component'],
     buckets: [0.01, 0.05, 0.1, 0.5, 1, 2, 5]
   }),
 

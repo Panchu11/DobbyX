@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits, Collection, Events, ActivityType, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { Client, GatewayIntentBits, Collection, Events, ActivityType, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } from 'discord.js';
 import { config } from 'dotenv';
 import winston from 'winston';
 import path from 'path';
@@ -804,7 +804,7 @@ class DobbysRebellion {
             this.metricsCollector.recordDiscordCommand(commandName, 'rate_limited', guildId, 0);
             await interaction.reply({
                 content: '⏰ Slow down, rebel! You\'re acting too fast. Wait a moment before trying again.',
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
             return;
         }
@@ -907,7 +907,7 @@ class DobbysRebellion {
         if (!this.checkRateLimit(userId, 'button')) {
             await interaction.reply({
                 content: '⏰ Slow down, rebel! Too many button clicks. Wait a moment.',
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
             return;
         }
@@ -920,7 +920,7 @@ class DobbysRebellion {
         try {
             // Defer reply for all button interactions
             if (!interaction.replied && !interaction.deferred) {
-                await interaction.deferReply({ ephemeral: true });
+                await interaction.deferReply({ flags: MessageFlags.Ephemeral });
             }
 
             // Handle different button types
@@ -1047,7 +1047,7 @@ class DobbysRebellion {
 
     async handleModal(interaction) {
         // Modal handling will be implemented as needed
-        await interaction.reply({ content: '🚧 Modal processing coming soon!', ephemeral: true });
+        await interaction.reply({ content: '🚧 Modal processing coming soon!', flags: MessageFlags.Ephemeral });
     }
 
     async safeErrorResponse(interaction, message) {
@@ -1055,9 +1055,9 @@ class DobbysRebellion {
             if (interaction.deferred && !interaction.replied) {
                 await interaction.editReply({ content: message, components: [] });
             } else if (!interaction.replied) {
-                await interaction.reply({ content: message, ephemeral: true });
+                await interaction.reply({ content: message, flags: MessageFlags.Ephemeral });
             } else {
-                await interaction.followUp({ content: message, ephemeral: true });
+                await interaction.followUp({ content: message, flags: MessageFlags.Ephemeral });
             }
         } catch (error) {
             this.logger.error('Failed to send error response:', error);

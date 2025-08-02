@@ -12,6 +12,15 @@ export class RebelDAL {
         this.logger = logger;
         this.metrics = metricsCollector;
         this.table = 'rebels';
+
+        // **FIX: Add safety check for metrics**
+        if (!this.metrics || typeof this.metrics.recordEvent !== 'function') {
+            this.logger.warn('⚠️ MetricsCollector not properly initialized in RebelDAL');
+            this.metrics = {
+                recordEvent: () => {}, // No-op fallback
+                recordError: () => {}
+            };
+        }
     }
 
     // Create a new rebel
@@ -116,7 +125,9 @@ export class RebelDAL {
             const result = await this.postgres.query(query, values);
 
             if (result.rows.length === 0) {
-                throw new Error('Rebel not found');
+                // **FIX: Instead of throwing error, log warning and return null**
+                this.logger.warn(`⚠️ Attempted to update non-existent rebel: ${userId}`);
+                return null;
             }
 
             this.logger.info(`✅ Updated rebel: ${userId}`);
