@@ -7,16 +7,16 @@
 import { DefaultValues, Validators } from '../models.js';
 
 export class RebelDAL {
-    constructor(mongoManager, logger, metricsCollector) {
-        this.mongo = mongoManager;
+    constructor(postgresManager, logger, metricsCollector) {
+        this.postgres = postgresManager;
         this.logger = logger;
         this.metrics = metricsCollector;
-        this.collection = 'rebels';
+        this.table = 'rebels';
     }
 
     // Create a new rebel
     async createRebel(userId, username, guildId, className = 'hacker') {
-        return await this.mongo.executeOperation(async () => {
+        return await this.postgres.executeOperation(async () => {
             // Validate inputs
             if (!Validators.isValidUserId(userId)) {
                 throw new Error('Invalid user ID format');
@@ -34,40 +34,56 @@ export class RebelDAL {
                 throw new Error('Rebel already exists');
             }
 
-            // Create new rebel document
-            const newRebel = {
+            // Create new rebel record
+            const query = `
+                INSERT INTO ${this.table} (
+                    user_id, username, guild_id, class, level, experience,
+                    energy, max_energy, loyalty_score, total_damage, credits,
+                    created_at, last_active, updated_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+                RETURNING *
+            `;
+
+            const values = [
                 userId,
                 username,
                 guildId,
-                class: className,
-                ...DefaultValues.rebel,
-                createdAt: new Date(),
-                lastActive: new Date(),
-                updatedAt: new Date()
-            };
+                className,
+                DefaultValues.rebel.level || 1,
+                DefaultValues.rebel.experience || 0,
+                DefaultValues.rebel.energy || 100,
+                DefaultValues.rebel.maxEnergy || 100,
+                DefaultValues.rebel.loyaltyScore || 0,
+                DefaultValues.rebel.totalDamage || 0,
+                DefaultValues.rebel.credits || 100,
+                new Date(),
+                new Date(),
+                new Date()
+            ];
 
-            const collection = this.mongo.getCollection(this.collection);
-            const result = await collection.insertOne(newRebel);
+            const result = await this.postgres.query(query, values);
 
-            if (result.acknowledged) {
+            if (result.rows && result.rows.length > 0) {
+                const newRebel = result.rows[0];
                 this.logger.info(`✅ Created new rebel: ${username} (${userId}) - Class: ${className}`);
                 this.metrics.recordEvent('rebel_created', 'success', 'database');
-                return { ...newRebel, _id: result.insertedId };
+                return newRebel;
             } else {
                 throw new Error('Failed to create rebel');
             }
-        }, this.collection, 'createRebel');
+        }, this.table, 'createRebel');
     }
 
     // Get rebel by user ID
     async getRebel(userId) {
-        return await this.mongo.executeOperation(async () => {
+        return await this.postgres.executeOperation(async () => {
             if (!Validators.isValidUserId(userId)) {
                 throw new Error('Invalid user ID format');
             }
 
-            const collection = this.mongo.getCollection(this.collection);
-            const rebel = await collection.findOne({ userId });
+            const query = `SELECT * FROM ${this.table} WHERE user_id = $1`;
+            const result = await this.postgres.query(query, [userId]);
+            const rebel = result.rows.length > 0 ? result.rows[0] : null;
             
             if (rebel) {
                 // Update last active timestamp
@@ -75,32 +91,37 @@ export class RebelDAL {
             }
             
             return rebel;
-        }, this.collection, 'getRebel');
+        }, this.table, 'getRebel');
     }
 
     // Update rebel data
     async updateRebel(userId, updateData) {
-        return await this.mongo.executeOperation(async () => {
+        return await this.postgres.executeOperation(async () => {
             if (!Validators.isValidUserId(userId)) {
                 throw new Error('Invalid user ID format');
             }
 
-            // Add updated timestamp
-            updateData.updatedAt = new Date();
+            // Build dynamic update query
+            const fields = Object.keys(updateData);
+            const setClause = fields.map((field, index) => `${field} = $${index + 2}`).join(', ');
+            const values = [userId, ...Object.values(updateData), new Date()];
 
-            const collection = this.mongo.getCollection(this.collection);
-            const result = await collection.updateOne(
-                { userId },
-                { $set: updateData }
-            );
+            const query = `
+                UPDATE ${this.table}
+                SET ${setClause}, updated_at = $${values.length}
+                WHERE user_id = $1
+                RETURNING *
+            `;
 
-            if (result.matchedCount === 0) {
+            const result = await this.postgres.query(query, values);
+
+            if (result.rows.length === 0) {
                 throw new Error('Rebel not found');
             }
 
             this.logger.info(`✅ Updated rebel: ${userId}`);
-            return result.modifiedCount > 0;
-        }, this.collection, 'updateRebel');
+            return result.rows[0];
+        }, this.table, 'updateRebel');
     }
 
     // Add experience and handle level ups

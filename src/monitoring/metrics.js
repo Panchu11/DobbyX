@@ -243,6 +243,45 @@ export class MetricsCollector {
       totalUsers: metrics.totalUsers._hashMap?.get('')?.value || 0
     };
   }
+
+  // Generic event recording method
+  recordEvent(eventType, status, component, data = {}) {
+    try {
+      // Log the event
+      this.logger.info(`📊 Event: ${eventType} - ${status} (${component})`, data);
+
+      // Record in appropriate metric based on event type
+      if (eventType.includes('command')) {
+        metrics.discordCommandsTotal.inc({
+          command: data.command || 'unknown',
+          status,
+          guild_id: data.guildId || 'unknown'
+        });
+      } else if (eventType.includes('interaction')) {
+        metrics.discordInteractionsTotal.inc({ type: component, status });
+      } else if (eventType.includes('database')) {
+        metrics.databaseOperationsTotal.inc({ operation: eventType, status, component });
+      }
+    } catch (error) {
+      this.logger.warn(`Failed to record event: ${error.message}`);
+    }
+  }
+
+  // Generic error recording method
+  recordError(eventType, severity, component, data = {}) {
+    try {
+      this.logger.error(`🚨 Error: ${eventType} - ${severity} (${component})`, data);
+
+      // Increment error counter
+      metrics.errorsTotal.inc({
+        type: eventType,
+        severity,
+        component
+      });
+    } catch (error) {
+      this.logger.warn(`Failed to record error: ${error.message}`);
+    }
+  }
 }
 
 // Middleware for HTTP request metrics

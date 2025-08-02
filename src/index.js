@@ -11,7 +11,7 @@ import ErrorTracker from './monitoring/errorTracking.js';
 import HealthChecker from './monitoring/healthCheck.js';
 import BackupManager from './backup/backupManager.js';
 import SecurityManager from './security/securityManager.js';
-import MongoDBManager from './database/mongodb.js';
+import PostgreSQLManager from './database/postgresql.js';
 import RebelDAL from './database/dal/rebelDAL.js';
 import express from 'express';
 
@@ -57,8 +57,8 @@ class DobbysRebellion {
         this.healthChecker = new HealthChecker(this.logger, this.metricsCollector, this.errorTracker);
         this.backupManager = new BackupManager(this.logger, this.metricsCollector, this.errorTracker);
         this.securityManager = new SecurityManager(this.logger, this.metricsCollector, this.errorTracker);
-        this.mongoManager = new MongoDBManager(this.logger, this.metricsCollector, this.errorTracker);
-        this.rebelDAL = new RebelDAL(this.mongoManager, this.logger, this.metricsCollector);
+        this.postgresManager = new PostgreSQLManager(this.logger, this.metricsCollector, this.errorTracker);
+        this.rebelDAL = new RebelDAL(this.postgresManager, this.logger, this.metricsCollector);
 
         // Enhanced game systems
         this.resistanceCells = new Map(); // Team/group system
@@ -666,14 +666,15 @@ class DobbysRebellion {
             // Generate and log invite URL for easy access
             generateAndLogInviteUrl(this.logger);
 
-            // Initialize MongoDB connection (optional for development)
+            // Initialize PostgreSQL connection (required for production)
             try {
-                await this.mongoManager.connect();
-                this.logger.info('🗄️ MongoDB connection established');
+                await this.postgresManager.connect();
+                this.logger.info('🗄️ PostgreSQL connection established');
             } catch (error) {
-                this.logger.warn('⚠️ MongoDB not configured - running in development mode');
-                this.logger.warn('   Data will be stored in memory only');
-                this.logger.warn('   Configure MONGODB_URI for production deployment');
+                this.logger.error('❌ PostgreSQL connection failed - cannot start bot');
+                this.logger.error('   Configure DATABASE_URL environment variable');
+                this.logger.error(`   Error: ${error.message}`);
+                process.exit(1);
             }
 
             // Initialize Dobby AI
