@@ -88,7 +88,7 @@ MONGODB_URI=mongodb+srv://...
 MONGODB_DATABASE=dobbyx_rebellion
 
 # NEW (PostgreSQL)
-DATABASE_URL=postgresql://dobbyx_rebellion_user:oeGPAnD9aoVrPDgDgfoKl1A02sJgsNkw@dpg-d26ok1euk2gs73c7f4ng-a.oregon-postgres.render.com/dobbyx_rebellion
+DATABASE_URL=postgresql://username:password@host:port/dobbyx_rebellion
 ```
 
 ### **Package Dependencies**

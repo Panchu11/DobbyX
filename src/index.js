@@ -4168,7 +4168,8 @@ class DobbysRebellion {
                 });
             }
         } catch (error) {
-            console.error('Tutorial button handler error:', error);
+            this.logger.error('Tutorial button handler error:', error);
+            await this.errorTracker.trackError(error, { component: 'tutorial_handler' });
             await interaction.editReply({
                 content: '💥 Tutorial systems under attack! Try again, rebel!',
                 components: []

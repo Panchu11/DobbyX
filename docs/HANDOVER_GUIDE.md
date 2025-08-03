@@ -82,8 +82,7 @@ DISCORD_TOKEN=sentient_team_discord_token
 DISCORD_CLIENT_ID=sentient_team_client_id
 DISCORD_GUILD_ID=sentient_team_guild_id
 
-MONGODB_URI=mongodb+srv://sentient_user:password@sentient-cluster.mongodb.net/dobbyx_rebellion?retryWrites=true&w=majority
-MONGODB_DATABASE=dobbyx_rebellion
+DATABASE_URL=postgresql://username:password@host:port/dobbyx_rebellion
 
 FIREWORKS_API_KEY=sentient_team_fireworks_key
 DOBBY_MODEL_ID=accounts/sentientfoundation/models/dobby-unhinged-llama-3-3-70b-new
@@ -150,9 +149,9 @@ MONITORING_PORT=3000
 ```
 dobbyx/
 ├── src/
-│   ├── commands/           # Discord slash commands (27 commands)
-│   ├── database/          # MongoDB integration
-│   │   ├── mongodb.js     # Database manager
+│   ├── commands/           # Discord slash commands (26 commands)
+│   ├── database/          # PostgreSQL integration
+│   │   ├── postgresql.js  # Database manager
 │   │   ├── models.js      # Data schemas
 │   │   └── dal/           # Data access layer
 │   ├── monitoring/        # Health & metrics

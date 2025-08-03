@@ -105,7 +105,7 @@ export default {
             }
 
         } catch (error) {
-            console.error('Trade command error:', error);
+            game.logger.error('Trade command error:', error);
             await interaction.editReply({
                 content: '💥 Trading systems under attack! Try again, rebel!',
                 components: []

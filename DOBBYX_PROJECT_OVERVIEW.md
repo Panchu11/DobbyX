@@ -196,7 +196,7 @@ Players join as AI rebels fighting against Big Tech corporations (OpenAI, Meta, 
 ### **🏗️ ARCHITECTURE**
 - **Platform**: Node.js with Discord.js v14
 - **AI Integration**: Fireworks API with Dobby Unhinged Llama 3-70B
-- **Data Storage**: In-memory with planned MongoDB Atlas integration
+- **Data Storage**: PostgreSQL with Render hosting and intelligent caching
 - **Error Handling**: Comprehensive try-catch with graceful degradation
 - **Logging**: Winston-based logging for monitoring and debugging
 
