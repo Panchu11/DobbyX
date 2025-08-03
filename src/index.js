@@ -12,6 +12,7 @@ import HealthChecker from './monitoring/healthCheck.js';
 import BackupManager from './backup/backupManager.js';
 import SecurityManager from './security/securityManager.js';
 import PostgreSQLManager from './database/postgresql.js';
+import HybridCacheManager from './cache/hybridCacheManager.js';
 import RebelDAL from './database/dal/rebelDAL.js';
 import express from 'express';
 
@@ -59,6 +60,9 @@ class DobbysRebellion {
         this.securityManager = new SecurityManager(this.logger, this.metricsCollector, this.errorTracker);
         this.postgresManager = new PostgreSQLManager(this.logger, this.metricsCollector, this.errorTracker);
         this.rebelDAL = new RebelDAL(this.postgresManager, this.logger, this.metricsCollector);
+
+        // 🚀 ULTIMATE OPTIMIZATION: Hybrid Cache Manager
+        this.cacheManager = new HybridCacheManager(this.logger, this.postgresManager, this.metricsCollector);
 
         // Enhanced game systems
         this.resistanceCells = new Map(); // Team/group system
@@ -1204,9 +1208,10 @@ class DobbysRebellion {
         return classMap[customId] || 'Protocol Hacker';
     }
 
-    // Game-specific methods
+    // 🚀 ULTIMATE OPTIMIZED: Game-specific methods with hybrid caching
     getRebel(userId) {
-        return this.rebels.get(userId);
+        // Try hybrid cache first, fallback to game Map (zero impact)
+        return this.cacheManager.getUserSync(userId, this.rebels);
     }
 
     createRebel(userId, username, rebelClass) {
@@ -1251,7 +1256,8 @@ class DobbysRebellion {
             progress: new Map()
         });
 
-        this.rebels.set(userId, rebel);
+        // 🚀 ULTIMATE OPTIMIZATION: Use hybrid cache for user updates
+        this.cacheManager.updateUser(userId, rebel, this.rebels);
 
         // **NEW: Also save to database for persistence**
         this.saveRebelToDatabase(userId, username, rebelClass).catch(error => {
@@ -1521,18 +1527,14 @@ class DobbysRebellion {
 
             this.logger.info(`🆙 ${rebel.username} leveled up to ${newLevel}!`);
 
-            // **NEW: Save to database**
-            this.updateRebelInDatabase(userId).catch(error => {
-                this.logger.warn(`Failed to save level up to database: ${error.message}`);
-            });
+            // 🚀 ULTIMATE OPTIMIZATION: Update cache and queue database update
+            this.cacheManager.updateUser(userId, rebel, this.rebels);
 
             return true;
         }
 
-        // **NEW: Save experience gain to database**
-        this.updateRebelInDatabase(userId).catch(error => {
-            this.logger.warn(`Failed to save experience to database: ${error.message}`);
-        });
+        // 🚀 ULTIMATE OPTIMIZATION: Update cache and queue database update
+        this.cacheManager.updateUser(userId, rebel, this.rebels);
 
         return false;
     }
@@ -2260,10 +2262,7 @@ class DobbysRebellion {
         const expGained = Math.floor(actualDamage / 20) + 10;
         const leveledUp = this.gainExperience(rebel.userId, expGained);
 
-        // **NEW: Save raid results to database**
-        this.updateRebelInDatabase(rebel.userId).catch(error => {
-            this.logger.warn(`Failed to save raid results to database: ${error.message}`);
-        });
+        // 🚀 ULTIMATE OPTIMIZATION: Cache handles database updates automatically
 
         // Check if defeated
         const isDefeated = corporation.health <= 0;

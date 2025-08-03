@@ -20,13 +20,50 @@ export class PostgreSQLManager {
         this.pool = null;
         this.isConnected = false;
 
-        // Database configuration
+        // 🚀 ULTIMATE OPTIMIZATION: Supercharged database configuration
         this.config = {
             connectionString: process.env.DATABASE_URL,
             ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-            max: 10, // Maximum number of clients in the pool
-            idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
-            connectionTimeoutMillis: 5000, // Return an error after 5 seconds if connection could not be established
+
+            // 🔥 SUPERCHARGED POOL SETTINGS for 10,000+ users
+            max: 50,                    // Increased from 10 to 50 connections
+            min: 10,                    // Minimum connections always ready
+            idleTimeoutMillis: 30000,   // 30 seconds
+            connectionTimeoutMillis: 5000, // 5 seconds
+            maxUses: 7500,              // Max uses per connection before refresh
+
+            // 🎯 POSTGRESQL PERFORMANCE OPTIMIZATIONS
+            application_name: 'dobbyx_supercharged',
+            statement_timeout: 30000,   // 30 seconds
+            query_timeout: 30000,       // 30 seconds
+            idle_in_transaction_session_timeout: 60000, // 1 minute
+
+            // ⚡ CONNECTION OPTIMIZATION
+            keepAlive: true,
+            keepAliveInitialDelayMillis: 10000,
+        };
+
+        // 🧠 PREPARED STATEMENTS CACHE for ultra-fast queries
+        this.preparedStatements = new Map();
+
+        // 💾 INTELLIGENT QUERY RESULT CACHE
+        this.queryCache = new Map();
+        this.cacheConfig = {
+            maxSize: 2000,              // Cache up to 2000 query results
+            ttl: 5 * 60 * 1000,        // 5 minutes TTL
+            cleanupInterval: 60 * 1000  // Cleanup every minute
+        };
+
+        // 📦 BATCH OPERATION QUEUES for maximum efficiency
+        this.batchQueues = {
+            userUpdates: [],
+            inventoryUpdates: [],
+            achievementUpdates: [],
+            analyticsEvents: []
+        };
+        this.batchConfig = {
+            maxBatchSize: 100,
+            flushInterval: 5000 // Flush every 5 seconds
         };
 
         // Table names
@@ -43,12 +80,27 @@ export class PostgreSQLManager {
         };
 
         this.setupConnectionHandlers();
+        // Note: Optimization systems will start after connection is established
     }
 
     // Setup connection event handlers
     setupConnectionHandlers() {
         process.on('SIGINT', () => this.gracefulShutdown());
         process.on('SIGTERM', () => this.gracefulShutdown());
+    }
+
+    // 🚀 START ULTIMATE OPTIMIZATION SYSTEMS
+    startOptimizationSystems() {
+        // Start query cache cleanup
+        this.startQueryCacheCleanup();
+
+        // Start batch processing
+        this.startBatchProcessing();
+
+        // Start connection optimization
+        this.optimizeConnections();
+
+        this.logger.info('🚀 Ultimate optimization systems activated');
     }
 
     // Connect to PostgreSQL
@@ -73,6 +125,9 @@ export class PostgreSQLManager {
 
             // Initialize tables and indexes
             await this.initializeTables();
+
+            // 🚀 START ULTIMATE OPTIMIZATION SYSTEMS after successful connection
+            this.startOptimizationSystems();
 
             // Record connection metrics
             this.metrics.recordEvent('database_connection', 'success', 'postgresql');
@@ -353,18 +408,51 @@ export class PostgreSQLManager {
         return await this.pool.connect();
     }
 
-    // Execute query with automatic client management
+    // 🚀 SUPERCHARGED QUERY METHOD with intelligent caching
     async query(text, params = []) {
         if (!this.isConnected || !this.pool) {
             throw new Error('Database not connected');
         }
 
-        const client = await this.pool.connect();
+        const startTime = Date.now();
+
         try {
+            // 🧠 INTELLIGENT CACHE CHECK for SELECT queries
+            if (text.trim().toUpperCase().startsWith('SELECT')) {
+                const cacheKey = this.generateCacheKey(text, params);
+                const cached = this.queryCache.get(cacheKey);
+
+                if (cached && cached.expires > Date.now()) {
+                    this.metrics.recordEvent('query_cache_hit', 'success', 'postgresql');
+                    return cached.result;
+                }
+            }
+
+            const client = await this.pool.connect();
             const result = await client.query(text, params);
-            return result;
-        } finally {
             client.release();
+
+            const duration = Date.now() - startTime;
+
+            // 💾 CACHE SELECT QUERY RESULTS for future use
+            if (text.trim().toUpperCase().startsWith('SELECT') && result.rows.length > 0) {
+                this.cacheQueryResult(text, params, result);
+            }
+
+            this.metrics.recordEvent('database_query', 'success', 'postgresql', { duration });
+
+            return result;
+        } catch (error) {
+            const duration = Date.now() - startTime;
+            this.logger.error('Database query error:', error);
+            this.metrics.recordError('database_query_error', 'medium', 'postgresql', { duration });
+            this.errorTracker.trackError(error, {
+                component: 'postgresql',
+                operation: 'query',
+                query: text.substring(0, 100),
+                duration
+            });
+            throw error;
         }
     }
 
@@ -409,6 +497,210 @@ export class PostgreSQLManager {
             this.pool.on('remove', () => {
                 this.logger.info('🔌 PostgreSQL client removed from pool');
             });
+        }
+    }
+
+    // 🚀 ULTIMATE OPTIMIZATION METHODS
+
+    // ⚡ PREPARED STATEMENT EXECUTION for ultra-fast repeated queries
+    async executePrepared(name, text, params = []) {
+        const startTime = Date.now();
+
+        try {
+            const client = await this.pool.connect();
+
+            // Prepare statement if not already prepared
+            if (!this.preparedStatements.has(name)) {
+                await client.query(`PREPARE ${name} AS ${text}`);
+                this.preparedStatements.set(name, true);
+                this.logger.debug(`📝 Prepared statement: ${name}`);
+            }
+
+            const result = await client.query(`EXECUTE ${name}`, params);
+            client.release();
+
+            const duration = Date.now() - startTime;
+            this.metrics.recordEvent('prepared_statement', 'success', 'postgresql', { duration });
+
+            return result;
+        } catch (error) {
+            const duration = Date.now() - startTime;
+            this.logger.error('Prepared statement error:', error);
+            this.metrics.recordError('prepared_statement_error', 'medium', 'postgresql', { duration });
+            throw error;
+        }
+    }
+
+    // 📦 BATCH OPERATIONS for maximum efficiency
+    async batchInsert(table, columns, rows) {
+        if (rows.length === 0) return;
+
+        const startTime = Date.now();
+
+        try {
+            const placeholders = rows.map((_, i) =>
+                `(${columns.map((_, j) => `$${i * columns.length + j + 1}`).join(', ')})`
+            ).join(', ');
+
+            const values = rows.flat();
+            const query = `INSERT INTO ${table} (${columns.join(', ')}) VALUES ${placeholders}`;
+
+            const result = await this.query(query, values);
+            const duration = Date.now() - startTime;
+
+            this.logger.info(`📊 Batch insert: ${rows.length} rows in ${duration}ms`);
+            return result;
+        } catch (error) {
+            this.logger.error('Batch insert error:', error);
+            throw error;
+        }
+    }
+
+    // 🧠 CACHE MANAGEMENT METHODS
+    generateCacheKey(query, params) {
+        return `${query}:${JSON.stringify(params)}`.replace(/\s+/g, ' ').trim();
+    }
+
+    cacheQueryResult(query, params, result) {
+        if (this.queryCache.size >= this.cacheConfig.maxSize) {
+            // Remove oldest entries (LRU eviction)
+            const entries = Array.from(this.queryCache.entries());
+            entries.sort((a, b) => a[1].created - b[1].created);
+
+            for (let i = 0; i < Math.floor(this.cacheConfig.maxSize * 0.1); i++) {
+                this.queryCache.delete(entries[i][0]);
+            }
+        }
+
+        const cacheKey = this.generateCacheKey(query, params);
+        this.queryCache.set(cacheKey, {
+            result,
+            created: Date.now(),
+            expires: Date.now() + this.cacheConfig.ttl
+        });
+    }
+
+    startQueryCacheCleanup() {
+        setInterval(() => {
+            this.cleanupExpiredCache();
+        }, this.cacheConfig.cleanupInterval);
+    }
+
+    cleanupExpiredCache() {
+        const now = Date.now();
+        let cleaned = 0;
+
+        for (const [key, entry] of this.queryCache) {
+            if (entry.expires < now) {
+                this.queryCache.delete(key);
+                cleaned++;
+            }
+        }
+
+        if (cleaned > 0) {
+            this.logger.debug(`🧹 Cleaned ${cleaned} expired cache entries`);
+        }
+    }
+
+    // 📦 BATCH PROCESSING SYSTEM
+    startBatchProcessing() {
+        setInterval(() => {
+            this.flushBatchQueues();
+        }, this.batchConfig.flushInterval);
+    }
+
+    async flushBatchQueues() {
+        // Flush user updates
+        if (this.batchQueues.userUpdates.length > 0) {
+            await this.processBatchUserUpdates();
+        }
+
+        // Flush inventory updates
+        if (this.batchQueues.inventoryUpdates.length > 0) {
+            await this.processBatchInventoryUpdates();
+        }
+
+        // Flush achievement updates
+        if (this.batchQueues.achievementUpdates.length > 0) {
+            await this.processBatchAchievementUpdates();
+        }
+
+        // Flush analytics events
+        if (this.batchQueues.analyticsEvents.length > 0) {
+            await this.processBatchAnalyticsEvents();
+        }
+    }
+
+    async processBatchUserUpdates() {
+        const updates = this.batchQueues.userUpdates.splice(0, this.batchConfig.maxBatchSize);
+
+        try {
+            const query = `
+                UPDATE ${this.tables.rebels}
+                SET level = data.level, experience = data.experience, energy = data.energy,
+                    loyalty_score = data.loyalty_score, total_damage = data.total_damage,
+                    last_active = NOW()
+                FROM (VALUES ${updates.map((_, i) => `($${i*6+1}, $${i*6+2}, $${i*6+3}, $${i*6+4}, $${i*6+5}, $${i*6+6})`).join(', ')})
+                AS data(user_id, level, experience, energy, loyalty_score, total_damage)
+                WHERE ${this.tables.rebels}.user_id = data.user_id
+            `;
+
+            const values = updates.flatMap(u => [u.userId, u.level, u.experience, u.energy, u.loyaltyScore, u.totalDamage]);
+            await this.query(query, values);
+
+            this.logger.debug(`📊 Batch processed ${updates.length} user updates`);
+        } catch (error) {
+            this.logger.error('Batch user update error:', error);
+            // Re-add failed updates to queue for retry
+            this.batchQueues.userUpdates.unshift(...updates);
+        }
+    }
+
+    // ⚡ CONNECTION OPTIMIZATION
+    optimizeConnections() {
+        if (this.pool) {
+            this.pool.on('connect', (client) => {
+                // Optimize each new connection
+                client.query(`
+                    SET work_mem = '32MB';
+                    SET maintenance_work_mem = '128MB';
+                    SET effective_cache_size = '2GB';
+                    SET random_page_cost = 1.1;
+                    SET seq_page_cost = 1.0;
+                `).catch(err => this.logger.warn('Failed to optimize connection:', err));
+            });
+        }
+    }
+
+    // 🎯 BATCH QUEUE METHODS (for game logic to use)
+    queueUserUpdate(userId, level, experience, energy, loyaltyScore, totalDamage) {
+        this.batchQueues.userUpdates.push({
+            userId, level, experience, energy, loyaltyScore, totalDamage
+        });
+
+        // Flush immediately if queue is full
+        if (this.batchQueues.userUpdates.length >= this.batchConfig.maxBatchSize) {
+            setImmediate(() => this.processBatchUserUpdates());
+        }
+    }
+
+    queueInventoryUpdate(userId, items, credits, capacity) {
+        this.batchQueues.inventoryUpdates.push({
+            userId, items, credits, capacity
+        });
+
+        if (this.batchQueues.inventoryUpdates.length >= this.batchConfig.maxBatchSize) {
+            setImmediate(() => this.processBatchInventoryUpdates());
+        }
+    }
+
+    queueAnalyticsEvent(userId, eventType, eventData) {
+        this.batchQueues.analyticsEvents.push({
+            userId, eventType, eventData, timestamp: new Date()
+        });
+
+        if (this.batchQueues.analyticsEvents.length >= this.batchConfig.maxBatchSize) {
+            setImmediate(() => this.processBatchAnalyticsEvents());
         }
     }
 }
