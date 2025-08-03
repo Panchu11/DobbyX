@@ -44,6 +44,10 @@ class DobbysRebellion {
         });
         
         this.logger = logger;
+
+        // 🔒 VALIDATE CRITICAL ENVIRONMENT VARIABLES
+        this.validateEnvironmentVariables();
+
         this.commands = new Collection();
         this.rebels = new Map(); // In-memory rebel storage
         this.corporations = new Map(); // Corporate health tracking
@@ -78,6 +82,13 @@ class DobbysRebellion {
         this.userActivityTracker = new Map(); // Track user activity for cleanup
         this.memoryCleanupInterval = null; // Memory cleanup timer
         this.rateLimitTracker = new Map(); // Track user rate limits for spam prevention
+
+        // 🧹 CLEANUP TRACKING: Track all intervals for proper cleanup
+        this.activeIntervals = new Set(); // Track all active intervals
+        this.activeTimeouts = new Set(); // Track all active timeouts
+
+        // 🛡️ SETUP GRACEFUL SHUTDOWN HANDLING
+        this.setupGracefulShutdown();
 
         // Initialize game data
         this.initializeGameData();
@@ -1050,8 +1061,38 @@ class DobbysRebellion {
     }
 
     async handleModal(interaction) {
-        // Modal handling will be implemented as needed
-        await interaction.reply({ content: '🚧 Modal processing coming soon!', flags: MessageFlags.Ephemeral });
+        try {
+            const customId = interaction.customId;
+            const userId = interaction.user.id;
+
+            this.logger.info(`📝 Processing modal: ${customId} from ${interaction.user.tag}`);
+
+            // Rate limiting for modal interactions
+            if (!this.checkRateLimit(userId, 'modal')) {
+                await interaction.reply({
+                    content: '⏰ Slow down, rebel! Too many modal submissions. Wait a moment.',
+                    flags: MessageFlags.Ephemeral
+                });
+                return;
+            }
+
+            // Track user activity
+            this.updateUserActivity(userId);
+
+            // Modal handling will be implemented as needed
+            await interaction.reply({
+                content: '🚧 Modal processing coming soon! Advanced features in development.',
+                flags: MessageFlags.Ephemeral
+            });
+
+        } catch (error) {
+            this.logger.error('Modal handling error:', error);
+            await this.errorTracker.trackError(error, {
+                component: 'modal_handler',
+                modalId: interaction.customId
+            });
+            await this.safeErrorResponse(interaction, '💥 Modal processing failed! Try again, rebel!');
+        }
     }
 
     async safeErrorResponse(interaction, message) {
@@ -1206,6 +1247,134 @@ class DobbysRebellion {
 
         this.logger.info(`Class selection: ${customId} -> ${classMap[customId] || 'Unknown'}`);
         return classMap[customId] || 'Protocol Hacker';
+    }
+
+    // 🔒 ENVIRONMENT VARIABLE VALIDATION
+    validateEnvironmentVariables() {
+        const requiredVars = [
+            'DISCORD_TOKEN',
+            'DISCORD_CLIENT_ID',
+            'DISCORD_GUILD_ID',
+            'DATABASE_URL',
+            'FIREWORKS_API_KEY',
+            'DOBBY_MODEL_ID'
+        ];
+
+        const missingVars = requiredVars.filter(varName => !process.env[varName]);
+
+        if (missingVars.length > 0) {
+            this.logger.error('🚨 CRITICAL: Missing required environment variables:', missingVars);
+            this.logger.error('Please check your .env file or environment configuration');
+            process.exit(1);
+        }
+
+        // Validate Discord IDs (should be 18-digit snowflakes)
+        const discordIdPattern = /^\d{17,19}$/;
+        if (!discordIdPattern.test(process.env.DISCORD_CLIENT_ID)) {
+            this.logger.error('🚨 CRITICAL: Invalid DISCORD_CLIENT_ID format');
+            process.exit(1);
+        }
+
+        if (!discordIdPattern.test(process.env.DISCORD_GUILD_ID)) {
+            this.logger.error('🚨 CRITICAL: Invalid DISCORD_GUILD_ID format');
+            process.exit(1);
+        }
+
+        // Validate database URL format
+        if (!process.env.DATABASE_URL.startsWith('postgresql://')) {
+            this.logger.error('🚨 CRITICAL: DATABASE_URL must be a PostgreSQL connection string');
+            process.exit(1);
+        }
+
+        this.logger.info('✅ All required environment variables validated successfully');
+    }
+
+    // 🧹 MEMORY LEAK PREVENTION: Proper cleanup methods
+    createTrackedInterval(callback, delay) {
+        const intervalId = setInterval(callback, delay);
+        this.activeIntervals.add(intervalId);
+        return intervalId;
+    }
+
+    createTrackedTimeout(callback, delay) {
+        const timeoutId = setTimeout(() => {
+            callback();
+            this.activeTimeouts.delete(timeoutId);
+        }, delay);
+        this.activeTimeouts.add(timeoutId);
+        return timeoutId;
+    }
+
+    clearTrackedInterval(intervalId) {
+        clearInterval(intervalId);
+        this.activeIntervals.delete(intervalId);
+    }
+
+    clearTrackedTimeout(timeoutId) {
+        clearTimeout(timeoutId);
+        this.activeTimeouts.delete(timeoutId);
+    }
+
+    // Cleanup all intervals and timeouts
+    cleanupAllTimers() {
+        this.logger.info('🧹 Cleaning up all timers and intervals...');
+
+        for (const intervalId of this.activeIntervals) {
+            clearInterval(intervalId);
+        }
+        this.activeIntervals.clear();
+
+        for (const timeoutId of this.activeTimeouts) {
+            clearTimeout(timeoutId);
+        }
+        this.activeTimeouts.clear();
+
+        this.logger.info('✅ All timers cleaned up successfully');
+    }
+
+    // 🛡️ GRACEFUL SHUTDOWN HANDLING
+    setupGracefulShutdown() {
+        const gracefulShutdown = async (signal) => {
+            this.logger.info(`🛑 Received ${signal}, initiating graceful shutdown...`);
+
+            try {
+                // Stop accepting new requests
+                this.client.removeAllListeners();
+
+                // Clean up all timers and intervals
+                this.cleanupAllTimers();
+
+                // Close database connections
+                if (this.postgresManager) {
+                    await this.postgresManager.disconnect();
+                }
+
+                // Final cleanup
+                this.logger.info('✅ Graceful shutdown completed');
+                process.exit(0);
+            } catch (error) {
+                this.logger.error('❌ Error during graceful shutdown:', error);
+                process.exit(1);
+            }
+        };
+
+        // Handle various shutdown signals
+        process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+        process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+        process.on('SIGUSR2', () => gracefulShutdown('SIGUSR2')); // Nodemon restart
+
+        // Handle uncaught exceptions
+        process.on('uncaughtException', (error) => {
+            this.logger.error('🚨 Uncaught Exception:', error);
+            this.errorTracker.trackError(error, { component: 'uncaught_exception' });
+            gracefulShutdown('uncaughtException');
+        });
+
+        // Handle unhandled promise rejections
+        process.on('unhandledRejection', (reason, promise) => {
+            this.logger.error('🚨 Unhandled Rejection at:', promise, 'reason:', reason);
+            this.errorTracker.trackError(new Error(reason), { component: 'unhandled_rejection' });
+        });
     }
 
     // 🚀 ULTIMATE OPTIMIZED: Game-specific methods with hybrid caching
@@ -2808,7 +2977,7 @@ class DobbysRebellion {
     // SCALABILITY: Memory management for 10K+ users
     startMemoryManagement() {
         // Clean up inactive users every 30 minutes to prevent memory bloat
-        this.memoryCleanupInterval = setInterval(() => {
+        this.memoryCleanupInterval = this.createTrackedInterval(() => {
             this.cleanupInactiveUsers();
         }, 30 * 60000); // Every 30 minutes
 

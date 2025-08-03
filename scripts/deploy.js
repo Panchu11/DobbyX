@@ -39,6 +39,7 @@ class DeploymentManager {
 
     // Print colored output
     log(message, color = 'reset') {
+        // Using console.log for interactive script output (acceptable for CLI tools)
         console.log(`${colors[color]}${message}${colors.reset}`);
     }
 

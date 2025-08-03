@@ -30,9 +30,8 @@ DISCORD_TOKEN=your_sentient_team_discord_token
 DISCORD_CLIENT_ID=your_sentient_team_client_id
 DISCORD_GUILD_ID=your_sentient_team_guild_id
 
-# MongoDB Configuration
-MONGODB_URI=mongodb+srv://sentient_user:sentient_pass@sentient-cluster.mongodb.net/dobbyx_rebellion?retryWrites=true&w=majority
-MONGODB_DATABASE=dobbyx_rebellion
+# Database Configuration
+DATABASE_URL=postgresql://username:password@host:port/dobbyx_rebellion
 
 # AI Configuration
 FIREWORKS_API_KEY=your_sentient_team_fireworks_key
