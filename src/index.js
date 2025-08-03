@@ -2640,14 +2640,17 @@ class DobbysRebellion {
 
     startEnergyRegeneration() {
         // Regenerate 1 energy per minute for all rebels - OPTIMIZED FOR 10K+ USERS
-        setInterval(() => {
+        this.createTrackedInterval(() => {
             let regeneratedCount = 0;
+            let skippedInactive = 0;
+            let totalRebels = 0;
             const now = Date.now();
-            const fiveMinutesAgo = now - (5 * 60 * 1000);
+            const oneHourAgo = now - (60 * 60 * 1000); // Extended to 1 hour for better UX
 
             // Process in batches to avoid blocking the event loop
             const rebels = Array.from(this.rebels.values());
             const batchSize = 100;
+            totalRebels = rebels.length;
 
             const processBatch = (startIndex) => {
                 const endIndex = Math.min(startIndex + batchSize, rebels.length);
@@ -2655,28 +2658,39 @@ class DobbysRebellion {
                 for (let i = startIndex; i < endIndex; i++) {
                     const rebel = rebels[i];
 
-                    // Only process recently active players
+                    // Only process users active in the last hour (more generous)
                     const lastActiveTime = new Date(rebel.lastActive).getTime();
-                    if (lastActiveTime < fiveMinutesAgo) continue;
+                    if (lastActiveTime < oneHourAgo) {
+                        skippedInactive++;
+                        continue;
+                    }
 
                     if (rebel.energy < rebel.maxEnergy) {
                         rebel.energy = Math.min(rebel.energy + 1, rebel.maxEnergy);
                         rebel.lastEnergyRegen = new Date();
                         regeneratedCount++;
+
+                        // Update cache with new energy value
+                        this.cacheManager.updateUser(rebel.userId, rebel, this.rebels);
                     }
                 }
 
                 // Process next batch asynchronously to avoid blocking
                 if (endIndex < rebels.length) {
                     setImmediate(() => processBatch(endIndex));
-                } else if (regeneratedCount > 0) {
-                    this.logger.info(`⚡ Energy regenerated for ${regeneratedCount} active rebels`);
+                } else {
+                    // Log energy regeneration results
+                    if (regeneratedCount > 0 || totalRebels > 0) {
+                        this.logger.info(`⚡ Energy regeneration: ${regeneratedCount} rebels regenerated, ${skippedInactive} inactive, ${totalRebels} total`);
+                    }
                 }
             };
 
             // Start batch processing
             if (rebels.length > 0) {
                 processBatch(0);
+            } else {
+                this.logger.debug('⚡ No rebels found for energy regeneration');
             }
         }, 60000); // Every minute
     }

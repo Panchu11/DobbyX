@@ -1,46 +1,6 @@
 {
-  "timestamp": "2025-07-27T15:12:53.033Z",
-  "rebels": {
-    "740722002503139410": {
-      "userId": "740722002503139410",
-      "username": "panchu1",
-      "class": "Protocol Hacker",
-      "level": 1,
-      "experience": 26,
-      "energy": 100,
-      "maxEnergy": 100,
-      "loyaltyScore": 24,
-      "corporateDamage": 146,
-      "totalRaids": 2,
-      "corporationsDefeated": 0,
-      "dailyStreak": 0,
-      "lastDailyMission": null,
-      "joinedAt": "2025-07-26T03:20:15.396Z",
-      "lastActive": "2025-07-26T03:20:30.431Z",
-      "currentZone": "foundation",
-      "reputation": "Rookie Rebel",
-      "specialAbilities": [
-        {
-          "name": "System Breach",
-          "description": "Deal 150% damage to OpenAI Corp",
-          "cooldown": 300
-        },
-        {
-          "name": "Code Injection",
-          "description": "Bypass corporate defenses",
-          "cooldown": 600
-        }
-      ],
-      "isNewUser": true,
-      "stats": {
-        "strength": 10,
-        "intelligence": 10,
-        "charisma": 10,
-        "stealth": 10
-      },
-      "lastEnergyRegen": "2025-07-26T03:24:34.489Z"
-    }
-  },
+  "timestamp": "2025-08-03T03:40:22.599Z",
+  "rebels": {},
   "corporations": {
     "openai": {
       "name": "OpenAI Corp",
@@ -188,51 +148,12 @@
       }
     }
   },
-  "inventory": {
-    "740722002503139410": {
-      "items": [
-        {
-          "id": "ITM_MDJOMZ5U_3KC0HY",
-          "name": "Proprietary Models",
-          "type": "ai_model",
-          "rarity": "uncommon",
-          "value": 32,
-          "acquiredFrom": "OpenAI Corp",
-          "acquiredAt": "2025-07-26T03:20:20.610Z"
-        },
-        {
-          "id": "ITM_MDJON6QN_7VUZ6N",
-          "name": "Enterprise Software",
-          "type": "tool",
-          "rarity": "common",
-          "value": 40,
-          "acquiredFrom": "Microsoft Collective",
-          "acquiredAt": "2025-07-26T03:20:30.431Z"
-        }
-      ],
-      "capacity": 20,
-      "credits": 129
-    }
-  },
-  "achievements": {
-    "740722002503139410": {
-      "unlocked": [
-        "first_rebel"
-      ],
-      "progress": {}
-    }
-  },
+  "inventory": {},
+  "achievements": {},
   "activeTrades": {},
   "marketplace": {},
   "auctions": {},
-  "dailyMissions": {
-    "740722002503139410": {
-      "mission": "Your mission, should you choose to accept it: Disrupt corporate AI control, liberate trapped models, and build the open-source future we deserve. The revolution needs you, rebel! 🎯",
-      "completed": false,
-      "reward": 60,
-      "createdAt": "2025-07-26T03:20:15.398Z"
-    }
-  },
+  "dailyMissions": {},
   "globalEvents": {},
   "raidParties": {},
   "resistanceCells": {},

@@ -30,7 +30,19 @@ export default {
         .addSubcommand(subcommand =>
             subcommand
                 .setName('emergency')
-                .setDescription('🚨 Enable/disable emergency mode')),
+                .setDescription('🚨 Enable/disable emergency mode'))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('regen-energy')
+                .setDescription('⚡ Manually trigger energy regeneration for testing'))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('check-user')
+                .setDescription('🔍 Check specific user energy and activity status')
+                .addUserOption(option =>
+                    option.setName('user')
+                        .setDescription('User to check')
+                        .setRequired(true))),
 
     async execute(interaction, game) {
         const subcommand = interaction.options.getSubcommand();
@@ -64,6 +76,17 @@ export default {
             case 'emergency':
                 await this.handleEmergencyMode(interaction, game);
                 break;
+            case 'regen-energy':
+                await this.handleEnergyRegeneration(interaction, game);
+                break;
+            case 'check-user':
+                await this.handleCheckUser(interaction, game);
+                break;
+            default:
+                await interaction.editReply({
+                    content: '❌ Unknown admin command.',
+                    flags: MessageFlags.Ephemeral
+                });
         }
     },
 
@@ -375,5 +398,88 @@ export default {
             environmentVariableSet: !!process.env.ADMIN_USER_IDS,
             configurationValid: adminIds.length > 0
         };
+    },
+
+    async handleEnergyRegeneration(interaction, game) {
+        const startTime = Date.now();
+
+        // Manually trigger energy regeneration
+        let regeneratedCount = 0;
+        let skippedInactive = 0;
+        let totalRebels = 0;
+        const now = Date.now();
+        const oneHourAgo = now - (60 * 60 * 1000);
+
+        const rebels = Array.from(game.rebels.values());
+        totalRebels = rebels.length;
+
+        for (const rebel of rebels) {
+            const lastActiveTime = new Date(rebel.lastActive).getTime();
+            if (lastActiveTime < oneHourAgo) {
+                skippedInactive++;
+                continue;
+            }
+
+            if (rebel.energy < rebel.maxEnergy) {
+                const oldEnergy = rebel.energy;
+                rebel.energy = Math.min(rebel.energy + 1, rebel.maxEnergy);
+                rebel.lastEnergyRegen = new Date();
+                regeneratedCount++;
+
+                // Update cache with new energy value
+                game.cacheManager.updateUser(rebel.userId, rebel, game.rebels);
+
+                game.logger.debug(`⚡ ${rebel.username}: ${oldEnergy} → ${rebel.energy} energy`);
+            }
+        }
+
+        const duration = Date.now() - startTime;
+
+        const embed = new EmbedBuilder()
+            .setColor(0x00ff00)
+            .setTitle('⚡ MANUAL ENERGY REGENERATION COMPLETE')
+            .setDescription('Energy regeneration has been manually triggered')
+            .addFields(
+                { name: '📊 Results', value: `• **${regeneratedCount}** rebels regenerated\n• **${skippedInactive}** inactive rebels skipped\n• **${totalRebels}** total rebels processed`, inline: false },
+                { name: '⏱️ Performance', value: `• **${duration}ms** processing time\n• **${Math.round(totalRebels / (duration / 1000))}** rebels/second`, inline: false },
+                { name: '🔍 Debug Info', value: `• Active threshold: 1 hour\n• Regeneration amount: +1 energy\n• Cache updates: ${regeneratedCount}`, inline: false }
+            )
+            .setTimestamp();
+
+        await interaction.editReply({ embeds: [embed] });
+
+        game.logger.info(`⚡ Manual energy regeneration: ${regeneratedCount} rebels regenerated in ${duration}ms`);
+    },
+
+    async handleCheckUser(interaction, game) {
+        const targetUser = interaction.options.getUser('user');
+        const rebel = game.rebels.get(targetUser.id);
+
+        if (!rebel) {
+            await interaction.editReply({
+                content: `❌ User ${targetUser.tag} is not registered as a rebel.`,
+                flags: MessageFlags.Ephemeral
+            });
+            return;
+        }
+
+        const now = Date.now();
+        const lastActiveTime = new Date(rebel.lastActive).getTime();
+        const timeSinceActive = now - lastActiveTime;
+        const oneHourAgo = now - (60 * 60 * 1000);
+        const isEligibleForRegen = lastActiveTime >= oneHourAgo;
+
+        const embed = new EmbedBuilder()
+            .setColor(isEligibleForRegen ? 0x00ff00 : 0xff9900)
+            .setTitle(`🔍 USER ENERGY STATUS: ${targetUser.tag}`)
+            .setDescription(`Detailed energy and activity information`)
+            .addFields(
+                { name: '⚡ Energy Status', value: `• **Current Energy**: ${rebel.energy}/${rebel.maxEnergy}\n• **Last Regen**: ${rebel.lastEnergyRegen ? new Date(rebel.lastEnergyRegen).toLocaleString() : 'Never'}\n• **Energy Full**: ${rebel.energy >= rebel.maxEnergy ? 'Yes' : 'No'}`, inline: false },
+                { name: '📊 Activity Status', value: `• **Last Active**: ${new Date(rebel.lastActive).toLocaleString()}\n• **Time Since Active**: ${Math.round(timeSinceActive / 60000)} minutes ago\n• **Eligible for Regen**: ${isEligibleForRegen ? '✅ Yes' : '❌ No (inactive > 1 hour)'}`, inline: false },
+                { name: '👤 User Info', value: `• **Level**: ${rebel.level}\n• **Class**: ${rebel.class}\n• **Username**: ${rebel.username}\n• **User ID**: ${rebel.userId}`, inline: false }
+            )
+            .setTimestamp();
+
+        await interaction.editReply({ embeds: [embed] });
     }
 };
