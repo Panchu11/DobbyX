@@ -645,7 +645,15 @@ export class PostgreSQLManager {
                 WHERE ${this.tables.rebels}.user_id = data.user_id
             `;
 
-            const values = updates.flatMap(u => [u.userId, u.level, u.experience, u.energy, u.loyaltyScore, u.totalDamage]);
+            const values = updates.flatMap(u => [
+                u.userId,
+                parseInt(u.level, 10),
+                parseInt(u.experience, 10),
+                parseInt(u.energy, 10),
+                parseInt(u.loyaltyScore, 10),
+                parseInt(u.totalDamage, 10)
+            ]);
+
             await this.query(query, values);
 
             this.logger.debug(`📊 Batch processed ${updates.length} user updates`);

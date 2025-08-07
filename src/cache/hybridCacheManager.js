@@ -131,7 +131,7 @@ export class HybridCacheManager {
             userData.experience,
             userData.energy,
             userData.loyaltyScore,
-            userData.corporateDamage || userData.totalDamage || 0
+            userData.corporateDamage || 0
         );
     }
 
