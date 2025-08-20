@@ -3,8 +3,8 @@ services:
     name: dobbyx-rebellion
     env: node
     plan: free
-    buildCommand: npm install
-    startCommand: npm start
+    buildCommand: npm install --production=false
+    startCommand: npm run deploy-commands && npm start
     envVars:
       - key: NODE_ENV
         value: production

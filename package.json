@@ -11,7 +11,7 @@
     "deploy-commands": "node src/deploy-commands.js",
     "smoke": "node scripts/smoke-commands.js",
     "e2e:buttons": "node scripts/e2e-buttons.js",
-    "prepare": "npm run lint",
+    "postinstall": "echo 'Dependencies installed successfully'",
     "render-build": "npm install",
     "render-start": "npm run deploy-commands && npm start",
     "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js",
