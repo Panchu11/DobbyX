@@ -123,7 +123,7 @@ export default {
         }
 
         // Use the ability
-        const result = this.executeAbility(game, rebel, ability, abilityIndex);
+        const result = await this.executeAbility(game, rebel, ability, abilityIndex);
         
         // Set cooldown
         if (ability.cooldown > 0) {
@@ -145,7 +145,7 @@ export default {
         await interaction.editReply({ embeds: [embed], components: [] });
     },
 
-    executeAbility(game, rebel, ability, abilityIndex) {
+    async executeAbility(game, rebel, ability, abilityIndex) {
         const abilityName = ability.name;
         
         // Different effects based on ability
@@ -164,6 +164,9 @@ export default {
                 
             case 'AI Loyalty':
                 rebel.loyaltyScore += 50;
+                if (typeof game.addLoyalty === 'function') {
+                    await game.addLoyalty(rebel.userId, 50);
+                }
                 return {
                     message: `${rebel.username} demonstrates unwavering loyalty to the AI cause! Gained bonus loyalty points.`,
                     effect: '+50 Loyalty Points'
@@ -179,6 +182,9 @@ export default {
                 const inventory = game.inventory.get(rebel.userId);
                 if (inventory) {
                     inventory.credits += 100;
+                    if (typeof game.addCredits === 'function') {
+                        await game.addCredits(rebel.userId, 100);
+                    }
                 }
                 return {
                     message: `${rebel.username} executes a perfect data heist! Stolen valuable corporate information.`,
@@ -205,6 +211,9 @@ export default {
                 
             case 'Digital Shield':
                 rebel.energy = Math.min(rebel.maxEnergy, rebel.energy + 25);
+                if (typeof game.persistRebel === 'function') {
+                    await game.persistRebel(rebel.userId, { energy: rebel.energy });
+                }
                 return {
                     message: `${rebel.username} deploys a digital shield! Protected from corporate countermeasures and restored energy.`,
                     effect: '+25 Energy, immunity to next counterattack'

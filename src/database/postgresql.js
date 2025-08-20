@@ -193,6 +193,7 @@ export class PostgreSQLManager {
                 name VARCHAR(200) NOT NULL,
                 type VARCHAR(50) NOT NULL,
                 rarity VARCHAR(20) NOT NULL,
+                quantity INTEGER DEFAULT 1,
                 value INTEGER DEFAULT 0,
                 acquired_from VARCHAR(100),
                 acquired_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -505,23 +506,11 @@ export class PostgreSQLManager {
     // ⚡ PREPARED STATEMENT EXECUTION for ultra-fast repeated queries
     async executePrepared(name, text, params = []) {
         const startTime = Date.now();
-
         try {
-            const client = await this.pool.connect();
-
-            // Prepare statement if not already prepared
-            if (!this.preparedStatements.has(name)) {
-                await client.query(`PREPARE ${name} AS ${text}`);
-                this.preparedStatements.set(name, true);
-                this.logger.debug(`📝 Prepared statement: ${name}`);
-            }
-
-            const result = await client.query(`EXECUTE ${name}`, params);
-            client.release();
-
+            // Use pg native named prepared statements
+            const result = await this.pool.query({ name, text, values: params });
             const duration = Date.now() - startTime;
             this.metrics.recordEvent('prepared_statement', 'success', 'postgresql', { duration });
-
             return result;
         } catch (error) {
             const duration = Date.now() - startTime;

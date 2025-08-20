@@ -272,12 +272,15 @@ export default {
     distributeLoot(game, userParty, teamLoot) {
         const creditsPerMember = Math.floor(teamLoot.credits / userParty.members.length);
         
-        userParty.members.forEach((memberId, index) => {
+        userParty.members.forEach(async (memberId, index) => {
             const inventory = game.inventory.get(memberId);
             if (!inventory) return;
 
             // Distribute credits
             inventory.credits += creditsPerMember;
+            if (typeof game.addCredits === 'function') {
+                await game.addCredits(memberId, creditsPerMember);
+            }
 
             // Distribute items (round-robin)
             teamLoot.items.forEach((item, itemIndex) => {

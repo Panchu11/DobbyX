@@ -232,19 +232,25 @@ export default {
         const participants = Array.from(event.participants);
         const rewardMessage = `🎉 Event "${event.name}" completed! Rewards distributed to ${participants.length} participants.`;
 
-        participants.forEach(userId => {
+        participants.forEach(async (userId) => {
             const rebel = game.rebels.get(userId);
             if (rebel) {
                 // Award loyalty points based on contribution
                 const contribution = event.contributorData.get(userId) || 0;
                 const loyaltyReward = Math.floor(contribution * 0.1) + 50; // Base 50 + contribution bonus
                 rebel.loyaltyScore += loyaltyReward;
+                if (typeof game.addLoyalty === 'function') {
+                    await game.addLoyalty(userId, loyaltyReward);
+                }
 
                 // Award credits
                 const creditReward = Math.floor(contribution * 0.5) + 100; // Base 100 + contribution bonus
                 const inventory = game.inventory.get(userId);
                 if (inventory) {
                     inventory.credits += creditReward;
+                    if (typeof game.addCredits === 'function') {
+                        await game.addCredits(userId, creditReward);
+                    }
                 }
 
                 console.log(`🏆 Rewarded ${rebel.username}: +${loyaltyReward} loyalty, +${creditReward} credits`);

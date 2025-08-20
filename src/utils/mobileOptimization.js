@@ -1,5 +1,6 @@
 // 📱 MOBILE OPTIMIZATION UTILITIES FOR DISCORD
 // Optimizes embeds and interactions for mobile Discord users
+import { EmbedBuilder } from 'discord.js';
 
 export class MobileOptimizer {
     constructor() {
@@ -9,13 +10,12 @@ export class MobileOptimizer {
     }
 
     // Detect if user is likely on mobile (heuristic based on interaction patterns)
-    isMobileUser(interaction) {
+    isMobileUser(_interaction) {
         // This is a heuristic - Discord doesn't provide device info
         // We can make educated guesses based on interaction patterns
         
         // Check if user has used mobile-specific features recently
-        const userId = interaction.user.id;
-        const userAgent = interaction.client?.user?.presence?.activities?.[0]?.name;
+        // Intentionally not using user/device detection to avoid privacy issues
         
         // For now, we'll optimize for mobile by default since many Discord users are mobile
         return true; // Optimize for mobile by default
@@ -23,7 +23,8 @@ export class MobileOptimizer {
 
     // Optimize embed for mobile viewing
     optimizeEmbedForMobile(embed) {
-        const optimized = { ...embed };
+        // Accept both raw objects and EmbedBuilder instances
+        const optimized = embed?.data ? { ...embed.data } : { ...embed };
 
         // Shorten description if too long
         if (optimized.description && optimized.description.length > this.maxMobileEmbedLength) {
@@ -51,6 +52,11 @@ export class MobileOptimizer {
             }
         }
 
+        // If caller passed EmbedBuilder, rebuild; else return object
+        if (embed instanceof EmbedBuilder) {
+            const rebuilt = new EmbedBuilder(optimized);
+            return rebuilt;
+        }
         return optimized;
     }
 
@@ -100,7 +106,6 @@ export class MobileOptimizer {
 
     // Create mobile-optimized inventory display
     createMobileInventoryEmbed(items, userInfo, page = 0, itemsPerPage = 5) {
-        const { EmbedBuilder } = require('discord.js');
         
         const startIndex = page * itemsPerPage;
         const endIndex = startIndex + itemsPerPage;
@@ -131,7 +136,6 @@ export class MobileOptimizer {
 
     // Create mobile-optimized raid results
     createMobileRaidEmbed(raidResult) {
-        const { EmbedBuilder } = require('discord.js');
         
         const embed = new EmbedBuilder()
             .setColor(raidResult.success ? 0x00ff00 : 0xff0000)
@@ -162,7 +166,6 @@ export class MobileOptimizer {
 
     // Create mobile-optimized help embeds
     createMobileHelpEmbed(helpData) {
-        const { EmbedBuilder } = require('discord.js');
         
         const embed = new EmbedBuilder()
             .setColor(0x00ff41)
@@ -209,7 +212,6 @@ export class MobileOptimizer {
 
     // Create mobile-optimized market embed
     createMobileMarketEmbed(marketItems, page = 0, itemsPerPage = 4) {
-        const { EmbedBuilder } = require('discord.js');
         
         const startIndex = page * itemsPerPage;
         const endIndex = startIndex + itemsPerPage;
@@ -240,7 +242,6 @@ export class MobileOptimizer {
 
     // Create mobile-optimized tutorial embed
     createMobileTutorialEmbed(tutorialStep) {
-        const { EmbedBuilder } = require('discord.js');
         
         const embed = new EmbedBuilder()
             .setColor(0x00ff41)

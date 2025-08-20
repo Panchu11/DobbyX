@@ -3,10 +3,11 @@
  * Global test configuration and utilities
  */
 
-const { config } = require('dotenv');
+import { jest } from '@jest/globals';
+import { config as dotenvConfig } from 'dotenv';
 
 // Load test environment variables
-config({ path: '.env.test' });
+dotenvConfig({ path: '.env.test' });
 
 // Set test environment
 process.env.NODE_ENV = 'test';
@@ -81,15 +82,15 @@ global.testUtils = {
     cooldowns: new Map(),
     
     // Mock methods
-    getRebel: () => null,
-    createRebel: () => {},
-    updateRebel: () => {},
-    deleteRebel: () => {},
-    checkRateLimit: () => true,
-    updateUserActivity: () => {},
-    awardAchievement: () => {},
-    calculateDamage: () => 100,
-    generateLoot: () => [],
+    getRebel: jest.fn(() => null),
+    createRebel: jest.fn(() => {}),
+    updateRebel: jest.fn(() => {}),
+    deleteRebel: jest.fn(() => {}),
+    checkRateLimit: jest.fn(() => true),
+    updateUserActivity: jest.fn(() => {}),
+    awardAchievement: jest.fn(() => {}),
+    calculateDamage: jest.fn(() => 100),
+    generateLoot: jest.fn(() => []),
     
     // Mock logger
     logger: {
@@ -101,34 +102,38 @@ global.testUtils = {
   }),
 
   // Create test rebel data
-  createTestRebel: (overrides = {}) => ({
-    userId: '123456789012345678',
-    username: 'TestRebel',
-    class: 'hacker',
-    level: 1,
-    experience: 0,
-    energy: 100,
-    maxEnergy: 100,
-    loyaltyScore: 0,
-    corporateDamage: 0,
-    totalRaids: 0,
-    corporationsDefeated: 0,
-    dailyStreak: 0,
-    lastDailyMission: null,
-    joinedAt: new Date(),
-    lastActive: new Date(),
-    currentZone: 'foundation',
-    reputation: 'Rookie Rebel',
-    specialAbilities: ['code_injection', 'system_infiltration'],
-    isNewUser: true,
-    stats: {
-      strength: 10,
-      intelligence: 10,
-      charisma: 10,
-      stealth: 10
-    },
-    ...overrides
-  }),
+  createTestRebel: (overrides = {}) => {
+    const base = {
+      userId: '123456789012345678',
+      username: 'TestRebel',
+      class: 'hacker',
+      level: 1,
+      experience: 0,
+      energy: 100,
+      maxEnergy: 100,
+      loyaltyScore: 0,
+      corporateDamage: 0,
+      totalRaids: 0,
+      corporationsDefeated: 0,
+      dailyStreak: 0,
+      lastDailyMission: null,
+      joinedAt: new Date(),
+      lastActive: new Date(),
+      currentZone: 'foundation',
+      reputation: 'Rookie Rebel',
+      specialAbilities: ['code_injection', 'system_infiltration'],
+      isNewUser: true,
+      stats: {
+        strength: 10,
+        intelligence: 10,
+        charisma: 10,
+        stealth: 10
+      }
+    };
+    const rebel = { ...base, ...overrides };
+    rebel.experience = Math.max(0, rebel.experience || 0);
+    return rebel;
+  },
 
   // Create test inventory
   createTestInventory: (overrides = {}) => ({
@@ -196,3 +201,34 @@ global.testUtils = {
 //     };
 //   }
 // });
+
+// Enable custom matchers used by unit tests
+expect.extend({
+  toBeValidDiscordId(received) {
+    const pass = typeof received === 'string' && /^\d{17,19}$/.test(received);
+    return {
+      message: () => `expected ${received} to be a valid Discord ID`,
+      pass
+    };
+  },
+
+  toBeValidRebelClass(received) {
+    const validClasses = ['hacker', 'whistleblower', 'activist', 'researcher', 'coordinator'];
+    const pass = validClasses.includes(received);
+    return {
+      message: () => `expected ${received} to be a valid rebel class`,
+      pass
+    };
+  },
+
+  toHaveValidGameStats(received) {
+    const requiredStats = ['strength', 'intelligence', 'charisma', 'stealth'];
+    const pass = requiredStats.every(stat =>
+      typeof received[stat] === 'number' && received[stat] >= 0
+    );
+    return {
+      message: () => `expected ${received} to have valid game stats`,
+      pass
+    };
+  }
+});

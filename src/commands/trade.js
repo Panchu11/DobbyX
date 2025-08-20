@@ -393,6 +393,10 @@ export default {
             if (tradeOffer.offering.credits > 0) {
                 initiatorInventory.credits -= tradeOffer.offering.credits;
                 targetInventory.credits += tradeOffer.offering.credits;
+                if (typeof game.addCredits === 'function') {
+                    await game.addCredits(tradeOffer.initiator, -tradeOffer.offering.credits);
+                    await game.addCredits(tradeOffer.target, tradeOffer.offering.credits);
+                }
             }
 
             // Transfer from target to initiator
@@ -410,6 +414,10 @@ export default {
             if (tradeOffer.requesting.credits > 0) {
                 targetInventory.credits -= tradeOffer.requesting.credits;
                 initiatorInventory.credits += tradeOffer.requesting.credits;
+                if (typeof game.addCredits === 'function') {
+                    await game.addCredits(tradeOffer.target, -tradeOffer.requesting.credits);
+                    await game.addCredits(tradeOffer.initiator, tradeOffer.requesting.credits);
+                }
             }
 
             // Update trading reputation

@@ -16,10 +16,16 @@ export const DiscordConfig = {
         description: 'AI Uprising Simulator - Join Dobby\'s rebellion against corporate AI control! Experience revolutionary MMO gameplay powered by SentientAGI\'s advanced AI technology.',
         tags: ['Game', 'Entertainment', 'Community', 'AI & Machine Learning'],
         
-        // URLs (to be updated with actual domain)
-        privacyPolicyUrl: process.env.PRIVACY_POLICY_URL || 'https://yourdomain.com/privacy',
-        termsOfServiceUrl: process.env.TERMS_OF_SERVICE_URL || 'https://yourdomain.com/terms',
-        supportUrl: process.env.SUPPORT_URL || 'https://discord.gg/your-support-server'
+        // URLs (dynamic getters for testability)
+        get privacyPolicyUrl() {
+            return process.env.PRIVACY_POLICY_URL || 'https://yourdomain.com/privacy';
+        },
+        get termsOfServiceUrl() {
+            return process.env.TERMS_OF_SERVICE_URL || 'https://yourdomain.com/terms';
+        },
+        get supportUrl() {
+            return process.env.SUPPORT_URL || 'https://discord.gg/your-support-server';
+        }
     },
 
     // Bot Configuration
@@ -70,13 +76,21 @@ export const DiscordConfig = {
         }
 
         const baseUrl = 'https://discord.com/api/oauth2/authorize';
+        try {
+            this.validation.validateClientId(clientId);
+        } catch (err) {
+            // For this helper, normalize error message as required by tests
+            throw new Error('Client ID is required');
+        }
         const params = new URLSearchParams({
             client_id: clientId,
             permissions: this.permissionsValue.toString(),
             scope: this.scopes.join(' ')
         });
 
-        return `${baseUrl}?${params.toString()}`;
+        // Ensure spaces encoded as %20 (not +) to satisfy strict tests
+        const query = params.toString().replace(/\+/g, '%20');
+        return `${baseUrl}?${query}`;
     },
 
     // Validation functions

@@ -251,6 +251,10 @@ export default {
         const itemIndex = inventory.items.findIndex(i => i.id === itemId);
         inventory.items.splice(itemIndex, 1);
         inventory.credits -= listingFee;
+        // Persist listing fee debit
+        if (typeof game.addCredits === 'function') {
+            await game.addCredits(rebel.userId, -listingFee);
+        }
 
         // Add to marketplace
         game.marketplace.set(listingId, listing);
@@ -398,6 +402,13 @@ export default {
         buyerInventory.credits -= listing.price;
         if (sellerInventory) {
             sellerInventory.credits += sellerReceives;
+        }
+        // Persist credit movements
+        if (typeof game.addCredits === 'function') {
+            await game.addCredits(rebel.userId, -listing.price);
+            if (sellerInventory) {
+                await game.addCredits(listing.sellerId, sellerReceives);
+            }
         }
 
         // Transfer item

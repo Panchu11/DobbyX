@@ -72,8 +72,21 @@ export default {
             // Update rebel stats
             rebel.energy -= 25;
             rebel.corporateDamage += actualDamage;
-            rebel.loyaltyScore += Math.floor(actualDamage / 10);
+            const loyaltyGained = Math.floor(actualDamage / 10);
+            rebel.loyaltyScore += loyaltyGained;
             rebel.lastActive = new Date();
+
+            // Persist changes to PostgreSQL
+            if (typeof game.persistRebel === 'function') {
+                await game.persistRebel(userId, {
+                    energy: rebel.energy,
+                    totalDamage: rebel.corporateDamage,
+                    loyaltyScore: rebel.loyaltyScore
+                });
+            }
+            if (typeof game.addLoyalty === 'function' && loyaltyGained > 0) {
+                await game.addLoyalty(userId, loyaltyGained);
+            }
 
             // Determine if corporation is defeated
             const isDefeated = corporation.health <= 0;
@@ -91,6 +104,9 @@ export default {
                 
                 // Bonus rewards for defeating corporation
                 rebel.loyaltyScore += 100;
+                if (typeof game.addLoyalty === 'function') {
+                    await game.addLoyalty(userId, 100);
+                }
                 
             } else {
                 // Successful raid but corporation still standing
@@ -99,6 +115,11 @@ export default {
             }
 
             const healthPercent = Math.round((corporation.health / corporation.maxHealth) * 100);
+            // Simple credits reward proportional to damage
+            const creditsEarned = Math.max(0, Math.floor(actualDamage * 0.1));
+            if (creditsEarned > 0 && typeof game.addCredits === 'function') {
+                await game.addCredits(userId, creditsEarned);
+            }
             
             const embed = new EmbedBuilder()
                 .setColor(embedColor)
@@ -109,7 +130,8 @@ export default {
                     { name: '💥 Damage Dealt', value: `${actualDamage} points`, inline: true },
                     { name: '🏭 Corporate Health', value: `${corporation.health}/${corporation.maxHealth} (${healthPercent}%)`, inline: true },
                     { name: '⚡ Energy Used', value: '25', inline: true },
-                    { name: '🎖️ Loyalty Gained', value: `+${Math.floor(actualDamage / 10)}${isDefeated ? ' (+100 DEFEAT BONUS!)' : ''}`, inline: true },
+                    { name: '🎖️ Loyalty Gained', value: `+${loyaltyGained}${isDefeated ? ' (+100 DEFEAT BONUS!)' : ''}`, inline: true },
+                    { name: '💳 Credits Earned', value: `${creditsEarned}`, inline: true },
                     { name: '🎁 Loot Acquired', value: this.generateLoot(corporation, actualDamage), inline: true },
                     { name: '📊 Your Stats', value: `Energy: ${rebel.energy}/100\nLoyalty: ${rebel.loyaltyScore}\nTotal Damage: ${rebel.corporateDamage}`, inline: true }
                 )

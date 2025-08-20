@@ -259,6 +259,8 @@ export class BackupManager {
       async function* (source) {
         for await (const chunk of source) {
           chunks.push(chunk);
+          // yield to satisfy generator contract and ESLint require-yield
+          yield chunk;
         }
       }
     );

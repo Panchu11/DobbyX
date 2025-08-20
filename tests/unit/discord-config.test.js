@@ -1,9 +1,19 @@
+import { jest } from '@jest/globals';
 /**
  * Discord Configuration Tests
  * Unit tests for Discord application configuration and validation
  */
 
-import DiscordConfig, { logDiscordConfig, generateAndLogInviteUrl } from '../../src/config/discord.js';
+let DiscordConfig;
+let logDiscordConfig;
+let generateAndLogInviteUrl;
+
+beforeAll(async () => {
+  const mod = await import('../../src/config/discord.js');
+  DiscordConfig = mod.default || mod;
+  logDiscordConfig = mod.logDiscordConfig;
+  generateAndLogInviteUrl = mod.generateAndLogInviteUrl;
+});
 
 describe('Discord Configuration', () => {
   let mockLogger;

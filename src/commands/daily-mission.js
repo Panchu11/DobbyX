@@ -53,6 +53,10 @@ export default {
                     );
 
                 await interaction.editReply({ embeds: [embed], components: [actionRow] });
+                // New mission assigned: ensure lastActive is persisted as a nudge to activity tracking
+                if (typeof game.persistRebel === 'function') {
+                    await game.persistRebel(userId, { loyaltyScore: rebel.loyaltyScore });
+                }
                 return;
             }
 

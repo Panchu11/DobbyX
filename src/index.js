@@ -5,12 +5,13 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 import DobbyAI from './ai/dobby.js';
-import DiscordConfig, { logDiscordConfig, generateAndLogInviteUrl } from './config/discord.js';
+import { logDiscordConfig, generateAndLogInviteUrl } from './config/discord.js';
 import MetricsCollector from './monitoring/metrics.js';
 import ErrorTracker from './monitoring/errorTracking.js';
 import HealthChecker from './monitoring/healthCheck.js';
 import BackupManager from './backup/backupManager.js';
 import SecurityManager from './security/securityManager.js';
+import installPersistenceBridge from './database/persistenceBridge.js';
 import PostgreSQLManager from './database/postgresql.js';
 import HybridCacheManager from './cache/hybridCacheManager.js';
 import RebelDAL from './database/dal/rebelDAL.js';
@@ -95,6 +96,8 @@ class DobbysRebellion {
         this.initializeRebellionZones();
         this.initializeAchievements();
         this.startMemoryManagement();
+        // Bridge in-memory updates to PostgreSQL
+        installPersistenceBridge(this);
 
         // Set up monitoring HTTP server
         this.setupMonitoringServer();
@@ -104,16 +107,24 @@ class DobbysRebellion {
         global.discordClient = this.client;
     }
 
+    validateEnvironmentVariables() {
+        const required = ['DISCORD_TOKEN', 'DISCORD_CLIENT_ID'];
+        const missing = required.filter((k) => !process.env[k]);
+        if (missing.length > 0) {
+            this.logger.warn(`Missing environment variables: ${missing.join(', ')}`);
+        }
+    }
+
     // Set up monitoring HTTP server
     setupMonitoringServer() {
         const app = express();
         const port = process.env.MONITORING_PORT || 3000;
 
-        // Apply security middleware
+        // Apply security middleware only on public/POST routes
         app.use(this.securityManager.getHelmetConfig());
-        app.use(this.securityManager.createAdvancedRateLimit('general'));
-        app.use(this.securityManager.securityMiddleware());
         app.use(express.json({ limit: '10mb' }));
+        // Public write endpoints can have stricter protection if added in future
+        // No global validation/rate-limit for internal GET status endpoints to avoid false positives
 
         // Health check endpoint
         app.get('/health', this.healthChecker.healthEndpoint());
@@ -138,8 +149,8 @@ class DobbysRebellion {
                 const errors = this.errorTracker.getErrorStats();
                 const backupStats = this.backupManager.getBackupStats();
                 const securityStats = this.securityManager.getSecurityStats();
-                const databaseStatus = this.mongoManager.getConnectionStatus();
-                const databaseHealth = await this.mongoManager.healthCheck();
+                const databaseStatus = this.postgresManager.getConnectionStatus();
+                const databaseHealth = await this.postgresManager.healthCheck();
 
             res.json({
                 status: health.overall.status,

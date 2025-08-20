@@ -224,11 +224,11 @@ export class RebelDAL {
             } else {
                 // Add new item
                 const insertQuery = `
-                    INSERT INTO items (item_id, owner_id, name, type, rarity, value, acquired_from, acquired_at)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                    INSERT INTO items (item_id, owner_id, name, type, rarity, quantity, value, acquired_from, acquired_at)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
                 `;
                 await this.postgres.query(insertQuery, [
-                    itemId, userId, itemId, 'loot', 'common', 0, 'raid', new Date()
+                    itemId, userId, itemId, 'loot', 'common', quantity, 0, 'raid', new Date()
                 ]);
             }
 

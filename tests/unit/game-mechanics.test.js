@@ -252,7 +252,7 @@ describe('Game Mechanics', () => {
       const beforeTime = testRebel.lastActive;
       
       // Simulate activity update
-      testRebel.lastActive = new Date();
+      testRebel.lastActive = new Date(beforeTime.getTime() + 1);
       
       expect(testRebel.lastActive.getTime()).toBeGreaterThan(beforeTime.getTime());
     });

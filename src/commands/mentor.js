@@ -86,7 +86,7 @@ export default {
         }
 
         // Check if already a mentor
-        const existingMentorship = this.findMentorshipByMentor(game, userId);
+        const existingMentorship = this.findMentorshipByMentor(game, rebel.userId);
         if (existingMentorship) {
             await interaction.editReply({
                 content: '❌ You are already a mentor!',
@@ -99,7 +99,7 @@ export default {
         const mentorId = `mentor_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         const mentorship = {
             id: mentorId,
-            mentorId: userId,
+            mentorId: rebel.userId,
             studentId: null,
             status: 'available',
             specialties: this.getMentorSpecialties(rebel.class),
@@ -270,6 +270,9 @@ export default {
         // Reward mentor
         if (mentor) {
             mentor.loyaltyScore += 100;
+            if (typeof game.addLoyalty === 'function') {
+                await game.addLoyalty(mentor.userId, 100);
+            }
             game.awardAchievement(mentorship.mentorId, 'mentor');
         }
 
@@ -290,6 +293,9 @@ export default {
 
         // Graduation bonus
         rebel.loyaltyScore += 50;
+        if (typeof game.addLoyalty === 'function') {
+            await game.addLoyalty(rebel.userId, 50);
+        }
 
         await interaction.editReply({ embeds: [embed] });
     },

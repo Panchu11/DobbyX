@@ -175,6 +175,9 @@ export default {
         const itemIndex = inventory.items.findIndex(i => i.id === itemId);
         inventory.items.splice(itemIndex, 1);
         inventory.credits -= auctionFee;
+        if (typeof game.addCredits === 'function') {
+            await game.addCredits(rebel.userId, -auctionFee);
+        }
 
         // Add to auctions
         game.auctions.set(auctionId, auction);
@@ -290,11 +293,17 @@ export default {
             const previousBidderInventory = game.inventory.get(auction.highestBidder);
             if (previousBidderInventory) {
                 previousBidderInventory.credits += auction.currentBid;
+                if (typeof game.addCredits === 'function') {
+                    await game.addCredits(auction.highestBidder, auction.currentBid);
+                }
             }
         }
 
         // Deduct credits from new bidder
         inventory.credits -= bidAmount;
+        if (typeof game.addCredits === 'function') {
+            await game.addCredits(rebel.userId, -bidAmount);
+        }
 
         // Update auction
         auction.currentBid = bidAmount;
@@ -354,6 +363,9 @@ export default {
                 const fee = Math.floor(auction.currentBid * 0.10);
                 const sellerReceives = auction.currentBid - fee;
                 sellerInventory.credits += sellerReceives;
+                if (typeof game.addCredits === 'function') {
+                    await game.addCredits(auction.sellerId, sellerReceives);
+                }
             }
 
             // Add to trade history
