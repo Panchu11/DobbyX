@@ -287,6 +287,13 @@ export default {
                 if (itemIndex % userParty.members.length === index) {
                     if (inventory.items.length < inventory.capacity) {
                         inventory.items.push(item);
+                        
+                        // Persist item to database
+                        if (typeof game.rebelDAL?.addItemToInventory === 'function') {
+                            game.rebelDAL.addItemToInventory(memberId, item.id, 1).catch(error => {
+                                console.warn(`Failed to persist team loot item ${item.id} to database: ${error.message}`);
+                            });
+                        }
                     }
                 }
             });

@@ -1761,6 +1761,13 @@ class DobbysRebellion {
                 };
 
                 inventory.items.push(item);
+                
+                // Persist defensive item to database
+                if (typeof this.rebelDAL?.addItemToInventory === 'function') {
+                    this.rebelDAL.addItemToInventory(userId, item.id, 1).catch(error => {
+                        this.logger.warn(`Failed to persist item ${item.id} to database: ${error.message}`);
+                    });
+                }
             } else {
                 const randomItem = lootItems[Math.floor(Math.random() * lootItems.length)];
                 const item = {
@@ -1774,6 +1781,13 @@ class DobbysRebellion {
                 };
 
                 inventory.items.push(item);
+                
+                // Persist regular loot item to database
+                if (typeof this.rebelDAL?.addItemToInventory === 'function') {
+                    this.rebelDAL.addItemToInventory(userId, item.id, 1).catch(error => {
+                        this.logger.warn(`Failed to persist item ${item.id} to database: ${error.message}`);
+                    });
+                }
             }
         }
 

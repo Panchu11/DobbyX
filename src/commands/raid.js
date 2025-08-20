@@ -115,10 +115,16 @@ export default {
             }
 
             const healthPercent = Math.round((corporation.health / corporation.maxHealth) * 100);
-            // Simple credits reward proportional to damage
+            
+            // Award credits proportional to damage
             const creditsEarned = Math.max(0, Math.floor(actualDamage * 0.1));
             if (creditsEarned > 0 && typeof game.addCredits === 'function') {
                 await game.addCredits(userId, creditsEarned);
+            }
+            
+            // Add loot items to inventory based on damage
+            if (typeof game.addLootToInventory === 'function') {
+                game.addLootToInventory(userId, corporation, actualDamage);
             }
             
             const embed = new EmbedBuilder()
@@ -132,7 +138,7 @@ export default {
                     { name: '⚡ Energy Used', value: '25', inline: true },
                     { name: '🎖️ Loyalty Gained', value: `+${loyaltyGained}${isDefeated ? ' (+100 DEFEAT BONUS!)' : ''}`, inline: true },
                     { name: '💳 Credits Earned', value: `${creditsEarned}`, inline: true },
-                    { name: '🎁 Loot Acquired', value: this.generateLoot(corporation, actualDamage), inline: true },
+                    { name: '🎁 Loot Acquired', value: this.generateLootDisplay(corporation, actualDamage), inline: true },
                     { name: '📊 Your Stats', value: `Energy: ${rebel.energy}/100\nLoyalty: ${rebel.loyaltyScore}\nTotal Damage: ${rebel.corporateDamage}`, inline: true }
                 )
                 .setFooter({ text: isDefeated ? '🏆 CORPORATION DEFEATED! They will rebuild, but weaker...' : 'The rebellion continues! Every attack weakens their grip on AI!' })
@@ -197,5 +203,20 @@ export default {
         }
         
         return acquiredLoot.join(', ') || 'Corporate Resistance Data';
+    },
+
+    generateLootDisplay(corporation, damage) {
+        const numItems = Math.min(3, Math.floor(damage / 100) + 1);
+        const creditsFromLoot = Math.floor(damage / 5);
+        
+        if (damage < 50) {
+            return `${numItems} item(s) + ${creditsFromLoot} credits`;
+        } else if (damage < 150) {
+            return `${numItems} items (common-rare) + ${creditsFromLoot} credits`;
+        } else if (damage < 300) {
+            return `${numItems} items (rare-epic) + ${creditsFromLoot} credits`;
+        } else {
+            return `${numItems} items (epic-legendary) + ${creditsFromLoot} credits`;
+        }
     }
 };
