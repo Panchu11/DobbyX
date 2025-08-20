@@ -9,7 +9,7 @@ export default {
         const userId = interaction.user.id;
 
         try {
-            const rebel = game.getRebel(userId);
+            const rebel = await game.getRebel(userId);
             
             if (!rebel) {
                 await interaction.editReply({

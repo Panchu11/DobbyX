@@ -18,7 +18,7 @@ export default {
         const abilityChoice = interaction.options.getString('ability');
 
         try {
-            const rebel = game.getRebel(userId);
+            const rebel = await game.getRebel(userId);
             
             if (!rebel) {
                 await interaction.editReply({

@@ -1389,9 +1389,20 @@ class DobbysRebellion {
     }
 
     // 🚀 ULTIMATE OPTIMIZED: Game-specific methods with hybrid caching
-    getRebel(userId) {
-        // Try hybrid cache first, fallback to game Map (zero impact)
-        return this.cacheManager.getUserSync(userId, this.rebels);
+    async getRebel(userId) {
+        // Try hybrid cache first, then database, fallback to game Map
+        let rebel = this.cacheManager.getUserSync(userId, this.rebels);
+        
+        if (!rebel) {
+            // Try loading from database
+            try {
+                rebel = await this.loadRebelFromDatabase(userId);
+            } catch (error) {
+                this.logger.warn(`Failed to load rebel ${userId} from database: ${error.message}`);
+            }
+        }
+        
+        return rebel;
     }
 
     createRebel(userId, username, rebelClass) {
@@ -1493,7 +1504,7 @@ class DobbysRebellion {
                 // Convert database format to memory format
                 const rebel = {
                     userId: dbRebel.user_id,
-                    username: dbRebel.username,
+                    username: dbRebel.username || 'Unknown Rebel', // Fallback if username is null
                     class: dbRebel.class,
                     level: dbRebel.level,
                     experience: dbRebel.experience,
