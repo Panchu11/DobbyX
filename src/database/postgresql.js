@@ -622,25 +622,30 @@ export class PostgreSQLManager {
 
     async processBatchUserUpdates() {
         const updates = this.batchQueues.userUpdates.splice(0, this.batchConfig.maxBatchSize);
+        
+        if (updates.length === 0) return;
 
         try {
             const query = `
                 UPDATE ${this.tables.rebels}
-                SET level = data.level, experience = data.experience, energy = data.energy,
-                    loyalty_score = data.loyalty_score, total_damage = data.total_damage,
+                SET level = data.level::INTEGER, 
+                    experience = data.experience::INTEGER, 
+                    energy = data.energy::INTEGER,
+                    loyalty_score = data.loyalty_score::INTEGER, 
+                    total_damage = data.total_damage::INTEGER,
                     last_active = NOW()
-                FROM (VALUES ${updates.map((_, i) => `($${i*6+1}, $${i*6+2}, $${i*6+3}, $${i*6+4}, $${i*6+5}, $${i*6+6})`).join(', ')})
+                FROM (VALUES ${updates.map((_, i) => `($${i*6+1}, $${i*6+2}::INTEGER, $${i*6+3}::INTEGER, $${i*6+4}::INTEGER, $${i*6+5}::INTEGER, $${i*6+6}::INTEGER)`).join(', ')})
                 AS data(user_id, level, experience, energy, loyalty_score, total_damage)
                 WHERE ${this.tables.rebels}.user_id = data.user_id
             `;
 
             const values = updates.flatMap(u => [
                 u.userId,
-                parseInt(u.level, 10),
-                parseInt(u.experience, 10),
-                parseInt(u.energy, 10),
-                parseInt(u.loyaltyScore, 10),
-                parseInt(u.totalDamage, 10)
+                Math.max(0, Math.floor(Number(u.level) || 0)),
+                Math.max(0, Math.floor(Number(u.experience) || 0)),
+                Math.max(0, Math.floor(Number(u.energy) || 0)),
+                Math.max(0, Math.floor(Number(u.loyaltyScore) || 0)),
+                Math.max(0, Math.floor(Number(u.totalDamage) || 0))
             ]);
 
             await this.query(query, values);
@@ -671,9 +676,17 @@ export class PostgreSQLManager {
 
     // 🎯 BATCH QUEUE METHODS (for game logic to use)
     queueUserUpdate(userId, level, experience, energy, loyaltyScore, totalDamage) {
-        this.batchQueues.userUpdates.push({
-            userId, level, experience, energy, loyaltyScore, totalDamage
-        });
+        // Ensure all numeric values are properly typed and valid
+        const update = {
+            userId: String(userId),
+            level: Math.max(1, Math.floor(Number(level) || 1)),
+            experience: Math.max(0, Math.floor(Number(experience) || 0)),
+            energy: Math.max(0, Math.floor(Number(energy) || 0)),
+            loyaltyScore: Math.max(0, Math.floor(Number(loyaltyScore) || 0)),
+            totalDamage: Math.max(0, Math.floor(Number(totalDamage) || 0))
+        };
+        
+        this.batchQueues.userUpdates.push(update);
 
         // Flush immediately if queue is full
         if (this.batchQueues.userUpdates.length >= this.batchConfig.maxBatchSize) {
