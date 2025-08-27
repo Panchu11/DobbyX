@@ -209,31 +209,54 @@ export class RebelDAL {
                 throw new Error('Rebel not found');
             }
 
-            // Check if item already exists
-            const existingQuery = `SELECT * FROM items WHERE owner_id = $1 AND item_id = $2`;
-            const existingResult = await this.postgres.query(existingQuery, [userId, itemId]);
+            try {
+                // Check if item already exists
+                const existingQuery = `SELECT * FROM items WHERE owner_id = $1 AND item_id = $2`;
+                const existingResult = await this.postgres.query(existingQuery, [userId, itemId]);
 
-            if (existingResult.rows.length > 0) {
-                // Update existing item quantity
-                const updateQuery = `
-                    UPDATE items
-                    SET quantity = quantity + $1
-                    WHERE owner_id = $2 AND item_id = $3
-                `;
-                await this.postgres.query(updateQuery, [quantity, userId, itemId]);
-            } else {
-                // Add new item
-                const insertQuery = `
-                    INSERT INTO items (item_id, owner_id, name, type, rarity, quantity, value, acquired_from, acquired_at)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-                `;
-                await this.postgres.query(insertQuery, [
-                    itemId, userId, itemId, 'loot', 'common', quantity, 0, 'raid', new Date()
-                ]);
+                if (existingResult.rows.length > 0) {
+                    // Update existing item quantity
+                    const updateQuery = `
+                        UPDATE items
+                        SET quantity = quantity + $1
+                        WHERE owner_id = $2 AND item_id = $3
+                    `;
+                    await this.postgres.query(updateQuery, [quantity, userId, itemId]);
+                } else {
+                    // Add new item
+                    const insertQuery = `
+                        INSERT INTO items (item_id, owner_id, name, type, rarity, quantity, value, acquired_from, acquired_at)
+                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                    `;
+                    await this.postgres.query(insertQuery, [
+                        itemId, userId, itemId, 'loot', 'common', quantity, 0, 'raid', new Date()
+                    ]);
+                }
+
+                this.logger.info(`📦 Added ${quantity}x ${itemId} to ${userId}'s inventory`);
+                return true;
+            } catch (error) {
+                // Check if this is a missing column error
+                if (error.message && error.message.includes('column "quantity" of relation "items" does not exist')) {
+                    this.logger.error(`❌ Database schema error: quantity column missing from items table. Attempting to fix...`);
+                    
+                    // Try to fix the schema automatically
+                    try {
+                        const alterQuery = `ALTER TABLE items ADD COLUMN IF NOT EXISTS quantity INTEGER DEFAULT 1`;
+                        await this.postgres.query(alterQuery);
+                        this.logger.info(`✅ Successfully added quantity column to items table`);
+                        
+                        // Retry the original operation
+                        return await this.addItemToInventory(userId, itemId, quantity);
+                    } catch (fixError) {
+                        this.logger.error(`❌ Failed to fix database schema: ${fixError.message}`);
+                        throw new Error(`Database schema error: Please restart the application to fix the items table structure`);
+                    }
+                }
+                
+                // Re-throw other errors
+                throw error;
             }
-
-            this.logger.info(`📦 Added ${quantity}x ${itemId} to ${userId}'s inventory`);
-            return true;
         }, this.table, 'addItemToInventory');
     }
 
@@ -245,35 +268,58 @@ export class RebelDAL {
                 throw new Error('Rebel not found');
             }
 
-            // Check if item exists
-            const itemQuery = `SELECT * FROM items WHERE owner_id = $1 AND item_id = $2`;
-            const itemResult = await this.postgres.query(itemQuery, [userId, itemId]);
+            try {
+                // Check if item exists
+                const itemQuery = `SELECT * FROM items WHERE owner_id = $1 AND item_id = $2`;
+                const itemResult = await this.postgres.query(itemQuery, [userId, itemId]);
 
-            if (itemResult.rows.length === 0) {
-                throw new Error('Item not found in inventory');
+                if (itemResult.rows.length === 0) {
+                    throw new Error('Item not found in inventory');
+                }
+
+                const item = itemResult.rows[0];
+                if (item.quantity < quantity) {
+                    throw new Error('Insufficient item quantity');
+                }
+
+                if (item.quantity === quantity) {
+                    // Remove item completely
+                    const deleteQuery = `DELETE FROM items WHERE owner_id = $1 AND item_id = $2`;
+                    await this.postgres.query(deleteQuery, [userId, itemId]);
+                } else {
+                    // Reduce quantity
+                    const updateQuery = `
+                        UPDATE items
+                        SET quantity = quantity - $1
+                        WHERE owner_id = $2 AND item_id = $3
+                    `;
+                    await this.postgres.query(updateQuery, [quantity, userId, itemId]);
+                }
+
+                this.logger.info(`📦 Removed ${quantity}x ${itemId} from ${userId}'s inventory`);
+                return true;
+            } catch (error) {
+                // Check if this is a missing column error
+                if (error.message && error.message.includes('column "quantity" of relation "items" does not exist')) {
+                    this.logger.error(`❌ Database schema error: quantity column missing from items table. Attempting to fix...`);
+                    
+                    // Try to fix the schema automatically
+                    try {
+                        const alterQuery = `ALTER TABLE items ADD COLUMN IF NOT EXISTS quantity INTEGER DEFAULT 1`;
+                        await this.postgres.query(alterQuery);
+                        this.logger.info(`✅ Successfully added quantity column to items table`);
+                        
+                        // Retry the original operation
+                        return await this.removeItemFromInventory(userId, itemId, quantity);
+                    } catch (fixError) {
+                        this.logger.error(`❌ Failed to fix database schema: ${fixError.message}`);
+                        throw new Error(`Database schema error: Please restart the application to fix the items table structure`);
+                    }
+                }
+                
+                // Re-throw other errors
+                throw error;
             }
-
-            const item = itemResult.rows[0];
-            if (item.quantity < quantity) {
-                throw new Error('Insufficient item quantity');
-            }
-
-            if (item.quantity === quantity) {
-                // Remove item completely
-                const deleteQuery = `DELETE FROM items WHERE owner_id = $1 AND item_id = $2`;
-                await this.postgres.query(deleteQuery, [userId, itemId]);
-            } else {
-                // Reduce quantity
-                const updateQuery = `
-                    UPDATE items
-                    SET quantity = quantity - $1
-                    WHERE owner_id = $2 AND item_id = $3
-                `;
-                await this.postgres.query(updateQuery, [quantity, userId, itemId]);
-            }
-
-            this.logger.info(`📦 Removed ${quantity}x ${itemId} from ${userId}'s inventory`);
-            return true;
         }, this.table, 'removeItemFromInventory');
     }
 

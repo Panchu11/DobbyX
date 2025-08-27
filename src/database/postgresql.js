@@ -260,7 +260,41 @@ export class PostgreSQLManager {
             }
         }
 
+        // Check and fix items table schema
+        await this.fixItemsTableSchema();
+
         this.logger.info('✅ All database tables created successfully');
+    }
+
+    // Fix items table schema if needed
+    async fixItemsTableSchema() {
+        try {
+            // Check if quantity column exists
+            const checkQuery = `
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name = 'items' AND column_name = 'quantity'
+            `;
+            const result = await this.pool.query(checkQuery);
+            
+            if (result.rows.length === 0) {
+                this.logger.warn('⚠️ Quantity column missing from items table. Adding it now...');
+                
+                // Add the missing quantity column
+                const alterQuery = `
+                    ALTER TABLE ${this.tables.items} 
+                    ADD COLUMN quantity INTEGER DEFAULT 1
+                `;
+                await this.pool.query(alterQuery);
+                
+                this.logger.info('✅ Quantity column added to items table successfully');
+            } else {
+                this.logger.info('✅ Items table schema is correct');
+            }
+        } catch (error) {
+            this.logger.error('❌ Failed to fix items table schema:', error.message);
+            // Don't throw error here as it might prevent the app from starting
+        }
     }
 
     // Create database indexes for performance
