@@ -709,6 +709,9 @@ class DobbysRebellion {
             // Load commands
             await this.loadCommands();
 
+            // 🚀 AUTO-DEPLOY COMMANDS: Ensure commands are always registered globally
+            await this.deployCommandsGlobally();
+
             // Setup event handlers
             this.setupEventHandlers();
 
@@ -745,6 +748,44 @@ class DobbysRebellion {
             } else {
                 this.logger.warn(`⚠️ Command ${file} missing required properties`);
             }
+        }
+    }
+
+    // 🚀 AUTO-DEPLOY COMMANDS: Automatically register slash commands globally
+    async deployCommandsGlobally() {
+        try {
+            const { REST, Routes } = await import('discord.js');
+            
+            // Get commands for deployment
+            const commands = [];
+            for (const command of this.commands.values()) {
+                commands.push(command.data.toJSON());
+            }
+
+            if (commands.length === 0) {
+                this.logger.warn('⚠️ No commands found to deploy');
+                return;
+            }
+
+            // Construct REST instance
+            const rest = new REST().setToken(process.env.DISCORD_TOKEN);
+
+            this.logger.info(`🚀 Auto-deploying ${commands.length} slash commands globally...`);
+
+            // Deploy commands globally (works in all servers)
+            const data = await rest.put(
+                Routes.applicationCommands(process.env.DISCORD_CLIENT_ID),
+                { body: commands },
+            );
+
+            this.logger.info(`✅ Successfully auto-deployed ${data.length} slash commands globally!`);
+            this.logger.info('🌎 Commands will be available in ALL servers that add this bot');
+            
+        } catch (error) {
+            this.logger.error('❌ Auto-deployment of commands failed:', error);
+            // Don't exit - let the bot continue without auto-deployment
+            this.logger.warn('⚠️ Bot will continue, but slash commands may not be available');
+            this.logger.warn('   Manual deployment may be required: npm run deploy-commands');
         }
     }
 
